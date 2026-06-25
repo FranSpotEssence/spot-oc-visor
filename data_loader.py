@@ -98,28 +98,28 @@ def _load_demo_data() -> pd.DataFrame:
     today = pd.Timestamp(date.today())
     # cols: oc, cliente, estado, fecha_despacho, un_sol, un_asig, bo_un, bo_val, comentarios, producto, categoria, marca, stock, valor_total, valor_facturado
     rows = [
-        # oc, cliente, estado, fecha_despacho, un_sol, un_asig, bo_un, bo_val, comentarios, producto, categoria, marca, stock, valor_total, valor_facturado, motivo_bo
-        ("6508802200","Walmart Chile","BACK ORDER", today - pd.Timedelta(days=1), 1200, 864,336, 336*4200,"Sin stock aromas cítricos","Aromatizador Auto Cítrico 8ml","AROMATIZADORES","SPOT",  0, 1200*4200, 864*4200, "Sin stock"),
-        ("6508802200","Walmart Chile","BACK ORDER", today - pd.Timedelta(days=1),  400, 264,136, 136*3800,"Sin stock aromas cítricos","Home Spray Lavanda 250ml",     "HOME SPRAY",   "SPOT", 12,  400*3800, 264*3800, "Sin stock"),
-        ("6508802200","Walmart Chile","BACK ORDER", today - pd.Timedelta(days=1),  300, 300,  0,       0,"",                          "Difusor Varillas 150ml Berries","DIFUSORES",    "SPOT", 45,  300*3600, 300*3600, ""),
-        ("6508799341","Sodimac",      "BACK ORDER", today + pd.Timedelta(days=2),  400, 200,200, 200*3500,"Asignación parcial",        "Difusor Auto Menta 5ml",       "AROMATIZADORES","SPOT",  0,  400*3500, 200*3500, "Stock insuficiente"),
-        ("6508799341","Sodimac",      "BACK ORDER", today + pd.Timedelta(days=2),  400, 400,  0,       0,"",                          "Home Spray Coco 250ml",        "HOME SPRAY",   "SPOT", 80,  400*3800, 400*3800, ""),
-        ("6508801554","Ripley",       "PENDIENTE",  today + pd.Timedelta(days=3),  200, 128, 72,  72*4100,"Faltan varillas 200ml",     "Difusor Varillas 200ml Flores","DIFUSORES",    "SPOT",  5,  200*4100, 128*4100, "Pendiente de compra"),
-        ("6508801554","Ripley",       "PENDIENTE",  today + pd.Timedelta(days=3),  400, 400,  0,       0,"",                          "Aromatizador Auto Lavanda",    "AROMATIZADORES","SPOT",120,  400*3900, 400*3900, ""),
-        ("6508800112","Paris",        "PENDIENTE",  today + pd.Timedelta(days=4),  400, 364, 36,  36*3900,"",                          "Home Spray Vainilla 200ml",    "HOME SPRAY",   "SPOT",  8,  400*3900, 364*3900, "Stock insuficiente"),
-        ("6508802118","Easy",         "PENDIENTE",  today + pd.Timedelta(days=6),  120, 108, 12,  12*3600,"Falta home spray ámbar",    "Home Spray Ámbar 250ml",       "HOME SPRAY",   "SPOT",  3,  120*3600, 108*3600, "Sin stock"),
-        ("6508802118","Easy",         "PENDIENTE",  today + pd.Timedelta(days=6),  120, 120,  0,       0,"",                          "Difusor Varillas 150ml Cítrico","DIFUSORES",    "SPOT", 30,  120*3400, 120*3400, ""),
-        ("6508803001","Falabella",    "PENDIENTE",  today + pd.Timedelta(days=6),  250, 245,  5,   5*5200,"Casi completo",             "Kit Aromatizador Premium",     "KITS",         "SPOT", 12,  250*5200, 245*5200, "Pendiente asignación"),
-        ("6508790011","Lider",        "CERRADA",    today - pd.Timedelta(days=10), 600, 600,  0,       0,"",                          "Home Spray Varios",            "HOME SPRAY",   "SPOT",  0,  600*3500, 600*3500, ""),
+        # oc, cliente, estado, fecha_despacho, un_sol, un_asig, bo_un, bo_val, comentarios, producto, categoria, marca, stock, valor_total, valor_facturado, motivo_bo, categoria_arbol
+        ("6508802200","Walmart Chile","BACK ORDER", today - pd.Timedelta(days=1), 1200, 864,336, 336*4200,"Sin stock aromas cítricos","Aromatizador Auto Cítrico 8ml","AROMATIZADORES","SPOT",  0, 1200*4200, 864*4200, "Sin stock",             "Quiebre de stock"),
+        ("6508802200","Walmart Chile","BACK ORDER", today - pd.Timedelta(days=1),  400, 264,136, 136*3800,"Sin stock aromas cítricos","Home Spray Lavanda 250ml",     "HOME SPRAY",   "SPOT", 12,  400*3800, 264*3800, "Sin stock",             "Quiebre de stock"),
+        ("6508802200","Walmart Chile","BACK ORDER", today - pd.Timedelta(days=1),  300, 300,  0,       0,"",                          "Difusor Varillas 150ml Berries","DIFUSORES",    "SPOT", 45,  300*3600, 300*3600, "",                      ""),
+        ("6508799341","Sodimac",      "BACK ORDER", today + pd.Timedelta(days=2),  400, 200,200, 200*3500,"Asignación parcial",        "Difusor Auto Menta 5ml",       "AROMATIZADORES","SPOT",  0,  400*3500, 200*3500, "Stock insuficiente",    "Quiebre de stock"),
+        ("6508799341","Sodimac",      "BACK ORDER", today + pd.Timedelta(days=2),  400, 400,  0,       0,"",                          "Home Spray Coco 250ml",        "HOME SPRAY",   "SPOT", 80,  400*3800, 400*3800, "",                      ""),
+        ("6508801554","Ripley",       "PENDIENTE",  today + pd.Timedelta(days=3),  200, 128, 72,  72*4100,"Faltan varillas 200ml",     "Difusor Varillas 200ml Flores","DIFUSORES",    "SPOT",  5,  200*4100, 128*4100, "Pendiente de compra",   "Retraso de compra"),
+        ("6508801554","Ripley",       "PENDIENTE",  today + pd.Timedelta(days=3),  400, 400,  0,       0,"",                          "Aromatizador Auto Lavanda",    "AROMATIZADORES","SPOT",120,  400*3900, 400*3900, "",                      ""),
+        ("6508800112","Paris",        "PENDIENTE",  today + pd.Timedelta(days=4),  400, 364, 36,  36*3900,"",                          "Home Spray Vainilla 200ml",    "HOME SPRAY",   "SPOT",  8,  400*3900, 364*3900, "Stock insuficiente",    "Quiebre de stock"),
+        ("6508802118","Easy",         "PENDIENTE",  today + pd.Timedelta(days=6),  120, 108, 12,  12*3600,"Falta home spray ámbar",    "Home Spray Ámbar 250ml",       "HOME SPRAY",   "SPOT",  3,  120*3600, 108*3600, "Sin stock",             "Quiebre de stock"),
+        ("6508802118","Easy",         "PENDIENTE",  today + pd.Timedelta(days=6),  120, 120,  0,       0,"",                          "Difusor Varillas 150ml Cítrico","DIFUSORES",    "SPOT", 30,  120*3400, 120*3400, "",                      ""),
+        ("6508803001","Falabella",    "PENDIENTE",  today + pd.Timedelta(days=6),  250, 245,  5,   5*5200,"Casi completo",             "Kit Aromatizador Premium",     "KITS",         "SPOT", 12,  250*5200, 245*5200, "Pendiente asignación",  "Retraso de compra"),
+        ("6508790011","Lider",        "CERRADA",    today - pd.Timedelta(days=10), 600, 600,  0,       0,"",                          "Home Spray Varios",            "HOME SPRAY",   "SPOT",  0,  600*3500, 600*3500, "",                      ""),
     ]
     cols = ["oc","cliente","estado","fecha_despacho","un_solicitadas","un_asignadas",
             "bo_un","bo_valorizado","comentarios","producto","categoria","marca","stock",
-            "valor_total","valor_facturado","motivo_bo"]
+            "valor_total","valor_facturado","motivo_bo","categoria_arbol"]
     hist_rows = _generate_hist_rows(today)
     all_rows  = rows + hist_rows
     cols = ["oc","cliente","estado","fecha_despacho","un_solicitadas","un_asignadas",
             "bo_un","bo_valorizado","comentarios","producto","categoria","marca","stock",
-            "valor_total","valor_facturado","motivo_bo"]
+            "valor_total","valor_facturado","motivo_bo","categoria_arbol"]
     df = pd.DataFrame(all_rows, columns=cols)
     df["fill_rate"] = np.where(df["un_solicitadas"]>0,
                                (df["un_asignadas"]/df["un_solicitadas"]*100).round(1), 100.0)
@@ -155,7 +155,8 @@ def _generate_hist_rows(today: pd.Timestamp) -> list:
         ("Kit Aromatizador Premium",        "KITS",           5200),
         ("Difusor Varillas 150ml Berries",  "DIFUSORES",      3600),
     ]
-    motivos = ["Sin stock", "Sin stock", "Stock insuficiente", "Pendiente de compra", "Pendiente asignación", ""]
+    motivos   = ["Sin stock", "Sin stock", "Stock insuficiente", "Pendiente de compra", "Pendiente asignación", ""]
+    cat_arbol = ["Quiebre de stock", "Quiebre de stock", "Quiebre de stock", "Retraso de compra", "Retraso de compra", "Problema logístico", ""]
 
     rows, oc_idx = [], 6508600000
 
@@ -182,13 +183,14 @@ def _generate_hist_rows(today: pd.Timestamp) -> list:
                     un_asig = round(un_sol * sku_fr / 100)
                     bo_un   = un_sol - un_asig
                     bo_val  = bo_un * precio
-                    motivo  = motivos[int(rng.integers(0, len(motivos)))] if bo_un > 0 else ""
+                    motivo  = motivos[int(rng.integers(0, len(motivos)))]    if bo_un > 0 else ""
+                    cat_a   = cat_arbol[int(rng.integers(0, len(cat_arbol)))] if bo_un > 0 else ""
 
                     rows.append((
                         oc_id, cli, "CERRADA", fecha_d,
                         un_sol, un_asig, bo_un, bo_val,
                         motivo, prod, cat, "SPOT", 0,
-                        un_sol * precio, un_asig * precio, motivo
+                        un_sol * precio, un_asig * precio, motivo, cat_a
                     ))
     return rows
 
@@ -370,6 +372,36 @@ def _aggregate_by_oc(df: pd.DataFrame) -> pd.DataFrame:
 def _worst_estado(estados):
     priority = {"BACK ORDER": 0, "VENCIDA": 1, "PENDIENTE": 2, "CERRADA": 9}
     return min(estados, key=lambda s: priority.get(str(s).upper(), 5))
+
+
+def get_week_closed_df() -> pd.DataFrame:
+    """
+    Retorna OCs CERRADAS cuya fecha de despacho cae en la semana actual (lun–dom).
+    Se usan para mostrarlas al final del tablero principal.
+    """
+    df = get_df()
+    if df is None or df.empty:
+        return pd.DataFrame()
+
+    today  = pd.Timestamp(date.today())
+    dow    = today.weekday()                          # 0=lun … 6=dom
+    lunes  = today - pd.Timedelta(days=dow)
+    domingo = lunes + pd.Timedelta(days=6)
+
+    mask = (
+        (df["estado"] == "CERRADA") &
+        (df["fecha_despacho"] >= lunes) &
+        (df["fecha_despacho"] <= domingo)
+    )
+    closed = df[mask].copy()
+    # Forzar flags en False para que _pending_to_json no las marque como vencidas
+    for flag in ("es_vencida", "es_proxima"):
+        if flag not in closed.columns:
+            closed[flag] = False
+        else:
+            closed[flag] = False
+
+    return _aggregate_by_oc(closed)
 
 
 def get_bo_detail_df() -> pd.DataFrame:

@@ -31,6 +31,26 @@ def fr_chip_class(fr: float) -> str:
     return "c-red"
 
 
+# Clientes clave para el cálculo de Venta Perdida MTD
+_CLIENTES_VENTA_PERDIDA = [
+    "sodimac", "walmart", "jumbo", "easy", "tottus",
+    "mercado libre", "aramco", "shell", "bestias",
+]
+
+def _venta_perdida_mtd(df_mes: pd.DataFrame) -> float:
+    """BO valorizado MTD — solo OCs cerradas de los clientes clave."""
+    if df_mes.empty or "cliente" not in df_mes.columns:
+        return 0.0
+    df_cerradas = df_mes[df_mes["estado"] == "CERRADA"] if "estado" in df_mes.columns else df_mes
+    if df_cerradas.empty:
+        return 0.0
+    clientes_lower = df_cerradas["cliente"].str.lower().fillna("")
+    mask = clientes_lower.apply(
+        lambda c: any(kw in c for kw in _CLIENTES_VENTA_PERDIDA)
+    )
+    return float(df_cerradas.loc[mask, "bo_valorizado"].sum()) if "bo_valorizado" in df_cerradas.columns else 0.0
+
+
 def compute_kpis(df: pd.DataFrame) -> dict:
     """Calcula todos los KPIs del dashboard a partir del DataFrame completo."""
     if df is None or df.empty:
@@ -63,6 +83,9 @@ def compute_kpis(df: pd.DataFrame) -> dict:
     # 5. Back Order Valorizado de OC en Curso
     bo_val_en_curso = _safe_sum(df_pend, "bo_valorizado")
 
+    # 6. Venta Perdida MTD (BO clientes clave, mes en curso)
+    venta_perdida_mtd = _venta_perdida_mtd(df_mes)
+
     # ── BO por producto (panel derecho) ──────────────────────────
     bo_por_producto = _bo_por_producto(df_pend)
 
@@ -73,6 +96,8 @@ def compute_kpis(df: pd.DataFrame) -> dict:
         "fr_mes":       fr_mes,
         "fr_mes_color": semaforo_fr(fr_mes),
         "fr_mes_label": _fr_label(fr_mes),
+
+        "venta_perdida_mtd": round(venta_perdida_mtd, 0),
 
         "oc_en_curso":          oc_en_curso,
         "fr_en_curso":          fr_en_curso,

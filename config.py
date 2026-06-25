@@ -17,7 +17,7 @@ class Config:
     # App
     REFRESH_INTERVAL = int(os.getenv("REFRESH_INTERVAL_MINUTES", "60"))
     SECRET_KEY       = os.getenv("SECRET_KEY", "spot-essence-secret-2024")
-    APP_PASSWORD     = os.getenv("APP_PASSWORD", "")
+    APP_PASSWORD     = ""  # Sin contraseña — acceso directo
 
     # Semaphore thresholds
     FR_GREEN  = 95.0   # >= 95%  → verde
@@ -57,7 +57,8 @@ class Config:
         "BO UN":               "bo_un",
         "BO VALORIZADO":       "bo_valorizado",
         "COMENTARIOS":         "comentarios",
-        "MOTIVO BO":           "motivo_bo",
+        "MOTIVO BO":                    "motivo_bo",
+        "CATEGORÍA ARBOL DE PÉRDIDA":   "categoria_arbol",
         "STOCK":               "stock",
         "Correlativo SKU":     "correlativo_sku",
     }

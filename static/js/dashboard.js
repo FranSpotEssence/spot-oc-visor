@@ -17,8 +17,64 @@ const STATE = {
   boChart:        null,
 };
 
+// ── Utilidades semana ─────────────────────────────────────────
+const _MES_EN = { jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11 };
+
+function currentWeekBounds() {
+  const hoy  = new Date();
+  const dow  = hoy.getDay();
+  const lunes = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - (dow === 0 ? 6 : dow - 1));
+  const domingo = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + 6);
+  return { lunes, domingo };
+}
+
+function parseDispatchDate(str) {
+  if (!str) return null;
+  const p = str.split("-");
+  if (p.length !== 3) return null;
+  const d = parseInt(p[0], 10);
+  const m = _MES_EN[p[1].toLowerCase().slice(0, 3)];
+  const y = parseInt(p[2], 10);
+  if (isNaN(d) || m === undefined || isNaN(y)) return null;
+  return new Date(y, m, d);
+}
+
+function sortWeekOrders(orders) {
+  return [...orders].sort((a, b) => {
+    const aClosed = (a.estado || "").toUpperCase() === "CERRADA";
+    const bClosed = (b.estado || "").toUpperCase() === "CERRADA";
+    if (aClosed !== bClosed) return aClosed ? 1 : -1;
+    const da = parseDispatchDate(a.fecha_despacho);
+    const db = parseDispatchDate(b.fecha_despacho);
+    if (!da && !db) return 0;
+    if (!da) return 1;
+    if (!db) return -1;
+    return da - db;
+  });
+}
+
+// ── Título semana en curso ────────────────────────────────────
+function setWeekRangeTitle() {
+  const el = document.getElementById("weekRangeTitle");
+  if (!el) return;
+  const MESES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+  const hoy   = new Date();
+  const dow   = hoy.getDay(); // 0=dom, 1=lun … 6=sab
+  const lunes = new Date(hoy);
+  lunes.setDate(hoy.getDate() - (dow === 0 ? 6 : dow - 1));
+  const domingo = new Date(lunes);
+  domingo.setDate(lunes.getDate() + 6);
+  const dL = lunes.getDate(),   mL = MESES[lunes.getMonth()];
+  const dD = domingo.getDate(), mD = MESES[domingo.getMonth()];
+  const rango = mL === mD
+    ? `${dL}–${dD} ${mL}`
+    : `${dL} ${mL} – ${dD} ${mD}`;
+  el.textContent = `semana ${rango}`;
+}
+
 // ── Init ──────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
+  setWeekRangeTitle();
   loadAll();
   startCountdown();
 
@@ -77,6 +133,16 @@ function renderKPIs(d) {
       <span class="fr-main-badge">${d.fr_mes_label || ""}</span>
     </div>
 
+    <!-- Venta Perdida MTD -->
+    <div class="kpi-s s-red">
+      <div>
+        <div class="kpi-s-lbl">Venta Perdida MTD</div>
+        <div class="kpi-s-val kpi-s-val--sm">${fmtMoney(d.venta_perdida_mtd)}</div>
+        <div class="kpi-s-sub">BO clientes clave · ${d.mes_label || ""}</div>
+      </div>
+      <div class="kpi-s-dot"></div>
+    </div>
+
     <!-- OC en Curso -->
     <div class="kpi-s s-neu">
       <div>
@@ -128,7 +194,18 @@ async function loadOrders() {
   try {
     const res  = await fetch("/api/orders");
     const data = await res.json();
-    STATE.orders = data.orders || [];
+    const all  = data.orders || [];
+
+    // OCs pendientes (cualquier fecha futura) + OCs cerradas solo de la semana actual
+    const { lunes, domingo } = currentWeekBounds();
+    const visible = all.filter(r => {
+      const cerrada = (r.estado || "").toUpperCase() === "CERRADA";
+      if (!cerrada) return true; // todas las pendientes
+      const d = parseDispatchDate(r.fecha_despacho);
+      return d && d >= lunes && d <= domingo; // cerradas solo si son de esta semana
+    });
+
+    STATE.orders = sortWeekOrders(visible);
     renderTable(STATE.orders);
   } catch (e) {
     console.error("Error cargando órdenes:", e);
@@ -140,7 +217,13 @@ function renderTable(orders) {
   const count = document.getElementById("tableCount");
   if (!tbody) return;
 
-  if (count) count.textContent = `${orders.length} órdenes`;
+  const pendientes = orders.filter(r => (r.estado || "").toUpperCase() !== "CERRADA");
+  if (count) count.textContent = `${orders.length} en semana`;
+  const pendCount = document.getElementById("tablePendCount");
+  if (pendCount) {
+    pendCount.textContent  = `${pendientes.length} pendientes`;
+    pendCount.style.display = pendientes.length > 0 ? "" : "none";
+  }
 
   if (!orders.length) {
     tbody.innerHTML = `<tr><td colspan="8">
@@ -172,6 +255,30 @@ function renderTable(orders) {
   }
 }
 
+function populateEstadoFilter(orders) {
+  const sel = document.getElementById("filtroEstado");
+  if (!sel) return;
+  const current = sel.value;
+
+  // Orden lógico preferido; estados no listados van al final alfabético
+  const ORDER = ["VENCIDA","PRÓX. VENCER","BACK ORDER","PENDIENTE","CERRADA"];
+  const found  = [...new Set(orders.map(r => r.estado).filter(Boolean))];
+  found.sort((a, b) => {
+    const ia = ORDER.indexOf(a);
+    const ib = ORDER.indexOf(b);
+    if (ia === -1 && ib === -1) return a.localeCompare(b);
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
+
+  sel.innerHTML = `<option value="">Todos los estados</option>` +
+    found.map(e => `<option value="${esc(e)}">${esc(e)}</option>`).join("");
+
+  // Restaurar selección previa si sigue siendo válida
+  if (current && found.includes(current)) sel.value = current;
+}
+
 function filterTable() {
   const q      = (document.getElementById("searchInput")?.value || "").toLowerCase().trim();
   const estado = (document.getElementById("filtroEstado")?.value || "").toUpperCase();
@@ -190,8 +297,10 @@ function filterTable() {
       (r.comentarios || "").toLowerCase().includes(q)
     );
   }
-  if (estado) {
-    filtered = filtered.filter(r => r.estado.toUpperCase().includes(estado));
+  if (estado === "CERRADA") {
+    filtered = filtered.filter(r => r.estado.toUpperCase() === "CERRADA");
+  } else if (estado === "PENDIENTE") {
+    filtered = filtered.filter(r => r.estado.toUpperCase() !== "CERRADA");
   }
 
   renderTable(filtered);
@@ -203,7 +312,7 @@ function clearFilters() {
   if (search) search.value = "";
   if (estado) estado.value = "";
   document.getElementById("btnClearFilters").style.display = "none";
-  renderTable(STATE.orders);
+  renderTable(sortWeekOrders(STATE.orders));
 }
 
 // ── PANEL BO POR PRODUCTO ─────────────────────────────────────
@@ -385,9 +494,11 @@ async function loadFrHistorico() {
     const data = await res.json();
     _frhConsultaPopulateClientes(data.clientes || []);
     FRH.consultaLoaded = true;
-    // Render empty state initially (no filters applied)
     renderFrhConsultaTable([], false);
   } catch(e) { console.error("Error FRH Consulta:", e); }
+
+  // Pre-cargar datos de pestañas Semanal y Mensual
+  await filterFrh();
 }
 
 async function filterFrh() {
@@ -419,7 +530,7 @@ function switchFrhTab(tab) {
   document.getElementById("frhTabSemanal") .style.display = tab === "semanal"  ? "" : "none";
   if (tab === "consulta") {
     if (!FRH.consultaLoaded) searchFrhConsulta();
-  } else if (FRH.data) {
+  } else {
     filterFrh();
   }
 }
@@ -1338,10 +1449,10 @@ function renderLossTree(rows) {
   const tbl = document.getElementById("lossTreeTable");
   if (!ctx) return;
 
-  // Agrupar por motivo_bo, guardando lista de SKUs
+  // Agrupar por categoría árbol de pérdida
   const groups = {};
   rows.forEach(r => {
-    const k = r.motivo_bo || "Sin especificar";
+    const k = (r.categoria_arbol && r.categoria_arbol.trim()) ? r.categoria_arbol.trim() : "Sin clasificar";
     if (!groups[k]) groups[k] = { bo_un: 0, bo_val: 0, items: [] };
     groups[k].bo_un  += r.bo_un;
     groups[k].bo_val += r.bo_valorizado;

@@ -13,9 +13,23 @@ from flask_cors import CORS
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from config import Config
-from data_loader import refresh_data, get_df, get_pending_df, get_cache, get_bo_detail_df
+from data_loader import refresh_data, get_df, get_pending_df, get_week_closed_df, get_cache, get_bo_detail_df
 from kpi_calculator import compute_kpis, compute_oc_detail, fr_chip_class, semaforo_fr
 from spotia import build_context, ask_spotia
+
+_NAN_STRS = {"nan", "none", "null", "n/a", "na", "nd"}
+
+def _s(val) -> str:
+    """Convierte un valor a string limpio; retorna '' si es NaN/None/vacío."""
+    if val is None:
+        return ""
+    try:
+        if pd.isna(val):
+            return ""
+    except (TypeError, ValueError):
+        pass
+    s = str(val).strip()
+    return "" if s.lower() in _NAN_STRS else s
 
 # ── Logging ──────────────────────────────────────────────────────
 logging.basicConfig(
@@ -123,7 +137,7 @@ def _pending_to_json(df: pd.DataFrame) -> list:
             "valor_total":     float(r.get("valor_total", 0) or 0),
             "valor_facturado": float(r.get("valor_facturado", 0) or 0),
             "un_solicitadas":  int(r.get("un_solicitadas", 0)),
-            "comentarios":     str(r.get("comentarios", "") or ""),
+            "comentarios":     _s(r.get("comentarios")),
             "n_skus":          int(r.get("n_skus", 0)),
         })
     return rows
@@ -168,9 +182,11 @@ def api_kpis():
 @app.route("/api/orders")
 @_login_required
 def api_orders():
-    """OCs pendientes para la tabla principal."""
-    pending = get_pending_df()
-    rows    = _pending_to_json(pending)
+    """OCs pendientes + OCs cerradas de la semana actual para la tabla principal."""
+    pending_rows = _pending_to_json(get_pending_df())
+    closed_rows  = _pending_to_json(get_week_closed_df())
+    # Cerradas van al final; el frontend también las ordena así
+    rows = pending_rows + closed_rows
 
     # Filtros query params
     cliente = request.args.get("cliente", "").strip().lower()
@@ -258,8 +274,9 @@ def api_backorder_detail():
             "fill_rate":      fr,
             "bo_valorizado":  bv,
             "bo_level":       bo_level,
-            "comentarios":    str(r.get("comentarios", "") or ""),
-            "motivo_bo":      str(r.get("motivo_bo", "") or ""),
+            "comentarios":      _s(r.get("comentarios")),
+            "motivo_bo":        _s(r.get("motivo_bo")),
+            "categoria_arbol":  _s(r.get("categoria_arbol")),
         })
 
     # Filtros query params
@@ -536,8 +553,7 @@ def api_fr_historico():
                     "un_sol":     u_sol,
                     "un_asig":    u_asig,
                     "bo_un":      int(row.get("bo_un", 0)),
-                    "comentario": (str(row.get("comentarios", "") or "")
-                                   if fr_row < 100 else ""),
+                    "comentario": (_s(row.get("comentarios")) if fr_row < 100 else ""),
                     "fr":         fr_row,
                 })
             prod_detail[prod] = detail_rows
@@ -822,7 +838,7 @@ def api_fr_consulta():
                 "val_fac":    float(r["valor_facturado"]),
                 "bo_val":     float(r.get("bo_valorizado", 0)),
                 "fr":         fr_r,
-                "comentario": (str(r.get("comentarios", "") or "") if fr_r < 100 else ""),
+                "comentario": (_s(r.get("comentarios")) if fr_r < 100 else ""),
             })
 
     return jsonify({"ocs": ocs[:200], "detail": detail, "clientes": clientes_list})
@@ -856,7 +872,7 @@ def api_fr_consulta_oc(oc_key):
             "val_fac":    float(r["valor_facturado"]),
             "bo_val":     float(r.get("bo_valorizado", 0)),
             "fr":         fr_r,
-            "comentario": (str(r.get("comentarios", "") or "") if fr_r < 100 else ""),
+            "comentario": (_s(r.get("comentarios")) if fr_r < 100 else ""),
         })
 
     meta = {}
@@ -909,7 +925,7 @@ def api_fr_semana(week_key):
             "fill_rate":      fr,
             "fr_chip":        fr_chip_class(fr),
             "bo_valorizado":  float(r.get("bo_valorizado", 0) or 0),
-            "comentarios":    str(r.get("comentarios", "") or ""),
+            "comentarios":    _s(r.get("comentarios")),
         })
 
     return jsonify({"rows": rows, "week": week_key})
@@ -987,8 +1003,8 @@ def api_export_backorder_csv():
             "UN Pendientes":     int(r.get("bo_un", 0)),
             "Fill Rate SKU (%)": float(r.get("fill_rate", 0)),
             "BO Valorizado":     float(r.get("bo_valorizado", 0) or 0),
-            "Comentario":        str(r.get("comentarios", "") or ""),
-            "Motivo BO":         str(r.get("motivo_bo", "") or ""),
+            "Comentario":        _s(r.get("comentarios")),
+            "Motivo BO":         _s(r.get("motivo_bo")),
         })
 
     # Aplicar los mismos filtros

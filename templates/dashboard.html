@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SPOT ESSENCE — Gestión Comercial</title>
+<title>SPOT ESSENCE — Supply Chain Visor</title>
 <link rel="icon" type="image/png" href="/static/img/logo.png">
 
 <!-- Fonts -->
@@ -30,7 +30,7 @@
     <img src="/static/img/logo.png" alt="SPOT ESSENCE" class="nav-logo">
   </a>
   <div class="nav-sep"></div>
-  <span class="nav-module">Gestión Comercial</span>
+  <span class="nav-module">Supply Chain Visor</span>
 
   <div class="nav-right ms-auto">
     <span class="dot-live" id="statusDot"></span>
@@ -51,7 +51,7 @@
   <aside class="spot-sidebar">
     <div class="sb-group">
       <div class="sb-label">Logística</div>
-      <a href="#" class="sb-item active" onclick="showSection('dashboard')">Dashboard</a>
+      <a href="#" class="sb-item active" onclick="showSection('dashboard')">Fill Rate semana</a>
       <a href="#" class="sb-item" onclick="showSection('bodetalle')">
         Detalle Back Order
         <span class="sb-badge red" id="badgeBoDetalle">—</span>
@@ -88,7 +88,7 @@
     <section id="sectionDashboard">
 
       <div class="page-header">
-        <h1 class="page-title">Tablero de Servicio Comercial</h1>
+        <h1 class="page-title">Fill Rate Órdenes de Compra <span id="weekRangeTitle"></span></h1>
         <p class="page-sub">
           Referencia: Fecha de Despacho ·
           <span id="mesLabel">—</span> ·
@@ -122,15 +122,15 @@
         <!-- Tabla OCs Pendientes -->
         <div class="panel flex-grow-1">
           <div class="panel-head">
-            <span class="panel-title">OCs Pendientes</span>
+            <span class="panel-title">Órdenes de Compra</span>
             <span class="panel-count" id="tableCount">—</span>
+            <span class="panel-count" id="tablePendCount" style="background:#dc2626;color:#fff;margin-left:4px">—</span>
             <div class="panel-filters ms-auto">
               <input type="text" id="searchInput" class="search-inp" placeholder="Buscar cliente u OC...">
               <select id="filtroEstado" class="filter-select">
                 <option value="">Todos los estados</option>
-                <option value="VENCIDA">Vencidas</option>
-                <option value="BACK ORDER">Back Order</option>
                 <option value="PENDIENTE">Pendiente</option>
+                <option value="CERRADA">Cerrada</option>
               </select>
               <button class="clear-btn" id="btnClearFilters" onclick="clearFilters()" style="display:none">Limpiar filtros</button>
               <a href="/api/export/csv" class="exp-btn" target="_blank">↓ CSV</a>
