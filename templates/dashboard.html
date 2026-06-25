@@ -60,6 +60,11 @@
     </div>
 
     <div class="sb-group">
+      <div class="sb-label">Inventarios</div>
+      <a href="#" class="sb-item" onclick="showSection('trackingpt')">Tracking diario PT</a>
+    </div>
+
+    <div class="sb-group">
       <div class="sb-label">Asistente</div>
       <a href="#" class="sb-item sb-spotia" onclick="showSection('spotia')">
         <span class="spotia-sb-icon">✦</span> SpotIA
@@ -639,6 +644,84 @@
         </div>
 
       </div>
+    </section>
+
+    <!-- ─── INVENTARIOS · Tracking diario PT ─── -->
+    <section id="sectionTrackingpt" class="d-none">
+
+      <div class="page-header">
+        <h1 class="page-title">Tracking Diario Producto Terminado</h1>
+        <p class="page-sub">
+          Producto Terminado · Indicadores diarios de demanda y stock ·
+          <span class="ph-pill">SUPPLY · COMERCIAL · DIRECCIÓN</span>
+        </p>
+      </div>
+
+      <!-- Semáforo leyenda -->
+      <div class="legend-bar">
+        <span class="legend-title">Semáforo cumplimiento</span>
+        <div class="leg-i"><div class="leg-dot" style="background:#16a34a"></div>≥90% Óptimo</div>
+        <div class="leg-i"><div class="leg-dot" style="background:#eab308"></div>80–89% Atención</div>
+        <div class="leg-i"><div class="leg-dot" style="background:#ea580c"></div>70–79% Riesgo</div>
+        <div class="leg-i"><div class="leg-dot" style="background:#dc2626"></div>&lt;70% Crítico</div>
+      </div>
+
+      <!-- KPI CARDS -->
+      <div class="kpi-grid" id="tptKpiGrid">
+        <div class="kpi-skeleton"></div>
+        <div class="kpi-skeleton"></div>
+        <div class="kpi-skeleton"></div>
+        <div class="kpi-skeleton"></div>
+        <div class="kpi-skeleton"></div>
+      </div>
+
+      <!-- Panel tabla con filtros -->
+      <div class="panel" style="margin-top:16px">
+        <div class="panel-head">
+          <span class="panel-title">Productos</span>
+          <span class="panel-count" id="tptCount">—</span>
+          <div class="panel-filters ms-auto">
+            <input type="text" id="tptSearch" class="search-inp" placeholder="Buscar descripción o EAN..."
+              oninput="filterTrackingPT()" style="min-width:180px">
+            <select id="tptCategoria" class="filter-select" onchange="filterTrackingPT()">
+              <option value="">Todas las categorías</option>
+            </select>
+            <select id="tptAroma" class="filter-select" onchange="filterTrackingPT()">
+              <option value="">Todos los aromas</option>
+            </select>
+            <select id="tptAbc" class="filter-select" onchange="filterTrackingPT()">
+              <option value="">Ranking ABC</option>
+            </select>
+            <button class="clear-btn" id="tptBtnClear" onclick="resetTrackingPT()" style="display:none">Limpiar filtros</button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="spot-table w-100" id="tptTable">
+            <thead>
+              <tr>
+                <th onclick="sortTPT('ean')" style="cursor:pointer">EAN ↕</th>
+                <th onclick="sortTPT('producto')" style="cursor:pointer">Producto ↕</th>
+                <th onclick="sortTPT('marca')" style="cursor:pointer">Marca ↕</th>
+                <th onclick="sortTPT('abc')" style="cursor:pointer;text-align:center">ABC ↕</th>
+                <th onclick="sortTPT('venta_mtd')" style="cursor:pointer;text-align:right">Venta MTD ↕</th>
+                <th onclick="sortTPT('cumplimiento')" style="cursor:pointer;text-align:center">Cumpl. ↕</th>
+                <th onclick="sortTPT('fa')" style="cursor:pointer;text-align:center">Forecast Acc. ↕</th>
+                <th onclick="sortTPT('stock')" style="cursor:pointer;text-align:right">Stock ↕</th>
+                <th onclick="sortTPT('doh')" style="cursor:pointer;text-align:right">DOH ↕</th>
+                <th onclick="sortTPT('doh_prod')" style="cursor:pointer;text-align:right">DOH+Prod ↕</th>
+                <th style="text-align:center">OC Pend.</th>
+                <th>Comentario</th>
+              </tr>
+            </thead>
+            <tbody id="tptBody">
+              <tr><td colspan="12" class="text-center py-4 text-muted">Cargando datos...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="tptFooter" class="panel-foot"></div>
+      </div>
+
     </section>
 
   </main>

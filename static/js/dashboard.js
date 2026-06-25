@@ -1587,7 +1587,7 @@ function frChipBo(fr) {
 
 // ── SECCIONES ─────────────────────────────────────────────────
 function showSection(name) {
-  const sections = ["dashboard","fillrate","backorder","bodetalle","frhistorico","spotia"];
+  const sections = ["dashboard","fillrate","backorder","bodetalle","frhistorico","spotia","trackingpt"];
   sections.forEach(s => {
     const el = document.getElementById(`section${cap(s)}`);
     if (el) el.classList.toggle("d-none", s !== name);
@@ -1602,6 +1602,7 @@ function showSection(name) {
   if (name === "bodetalle")   loadBoDetail();
   if (name === "frhistorico") loadFrHistorico();
   if (name === "spotia")      initSpotia();
+  if (name === "trackingpt")  loadTrackingPT();
 }
 
 // ── GRÁFICOS ──────────────────────────────────────────────────
@@ -1982,4 +1983,184 @@ function _spotiaSetLoading(on) {
   } else {
     if (_spotiaTypingEl) { _spotiaTypingEl.remove(); _spotiaTypingEl = null; }
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TRACKING PT
+// ═══════════════════════════════════════════════════════════════
+const TPT = { data: null, filtered: [], sortCol: "abc", sortAsc: true };
+
+async function loadTrackingPT() {
+  if (TPT.data) { filterTrackingPT(); return; }
+  try {
+    const res  = await fetch("/api/tracking-pt");
+    const json = await res.json();
+    TPT.data   = json;
+
+    const catSel   = document.getElementById("tptCategoria");
+    const aromaSel = document.getElementById("tptAroma");
+    const abcSel   = document.getElementById("tptAbc");
+    (json.categorias || []).forEach(c => catSel.insertAdjacentHTML("beforeend",  `<option value="${esc(c)}">${esc(c)}</option>`));
+    (json.aromas     || []).forEach(a => aromaSel.insertAdjacentHTML("beforeend",`<option value="${esc(a)}">${esc(a)}</option>`));
+    (json.abcs       || []).forEach(b => abcSel.insertAdjacentHTML("beforeend",  `<option value="${esc(b)}">${esc(b)}</option>`));
+
+    filterTrackingPT();
+  } catch(e) {
+    document.getElementById("tptBody").innerHTML =
+      `<tr><td colspan="12" class="text-center py-4" style="color:#dc2626">Error cargando datos: ${e.message}</td></tr>`;
+  }
+}
+
+function filterTrackingPT() {
+  if (!TPT.data) return;
+  const q    = (document.getElementById("tptSearch")?.value    || "").toLowerCase().trim();
+  const cat  = (document.getElementById("tptCategoria")?.value || "").toLowerCase();
+  const arom = (document.getElementById("tptAroma")?.value     || "").toLowerCase();
+  const abc  = (document.getElementById("tptAbc")?.value       || "").toLowerCase();
+
+  TPT.filtered = TPT.data.rows.filter(r => {
+    if (q    && !r.producto.toLowerCase().includes(q) && !r.ean.includes(q)) return false;
+    if (cat  && r.categoria.toLowerCase() !== cat)  return false;
+    if (arom && r.aroma.toLowerCase()     !== arom) return false;
+    if (abc  && r.abc.toLowerCase()       !== abc)  return false;
+    return true;
+  });
+
+  const hasFilter = q || cat || arom || abc;
+  const btn = document.getElementById("tptBtnClear");
+  if (btn) btn.style.display = hasFilter ? "" : "none";
+
+  sortAndRenderTPT();
+}
+
+function sortTPT(col) {
+  if (TPT.sortCol === col) TPT.sortAsc = !TPT.sortAsc;
+  else { TPT.sortCol = col; TPT.sortAsc = col === "abc" || col === "producto"; }
+  sortAndRenderTPT();
+}
+
+function sortAndRenderTPT() {
+  const col = TPT.sortCol;
+  const asc = TPT.sortAsc;
+  TPT.filtered.sort((a, b) => {
+    const va = a[col] ?? "", vb = b[col] ?? "";
+    if (typeof va === "number" && typeof vb === "number") return asc ? va - vb : vb - va;
+    return asc ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+  });
+  renderTPT();
+}
+
+function renderTPT() {
+  const rows  = TPT.filtered;
+  const tbody = document.getElementById("tptBody");
+
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="12" class="text-center py-4 text-muted">Sin resultados</td></tr>`;
+    renderTPTKpis([]);
+    document.getElementById("tptCount").textContent = "0";
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => {
+    const abcCls = r.abc === "A" ? "abc-A" : r.abc === "B" ? "abc-B" : r.abc === "C" ? "abc-C" : "abc-other";
+    const cumpl  = _tptPctChip(r.cumplimiento);
+    const fa     = _tptPctChip(r.fa);
+    const dohCls = r.doh === null ? "" : r.doh < 7 ? "doh-low" : r.doh > 60 ? "doh-high" : "doh-ok";
+    const dohTxt = r.doh !== null ? r.doh.toFixed(1) : "—";
+    const dohPTxt = r.doh_prod !== null ? r.doh_prod.toFixed(1) : "—";
+    return `<tr>
+      <td style="font-size:11px;color:#888;font-family:monospace">${esc(r.ean)}</td>
+      <td style="font-weight:500;max-width:220px">${esc(r.producto)}</td>
+      <td>${esc(r.marca)}</td>
+      <td style="text-align:center"><span class="abc-badge ${abcCls}">${esc(r.abc)}</span></td>
+      <td style="text-align:right">${r.venta_mtd !== null ? r.venta_mtd.toLocaleString("es-CL") : "—"}</td>
+      <td style="text-align:center">${cumpl}</td>
+      <td style="text-align:center">${fa}</td>
+      <td style="text-align:right">${r.stock !== null ? r.stock.toLocaleString("es-CL") : "—"}</td>
+      <td style="text-align:right"><span class="${dohCls}">${dohTxt}</span></td>
+      <td style="text-align:right">${dohPTxt}</td>
+      <td style="text-align:center">${r.oc_pendiente !== null && r.oc_pendiente > 0 ? r.oc_pendiente.toLocaleString("es-CL") : "—"}</td>
+      <td style="font-size:11px;color:#888;max-width:140px">${esc(r.comentario)}</td>
+    </tr>`;
+  }).join("");
+
+  document.getElementById("tptCount").textContent =
+    rows.length + (TPT.data.rows.length !== rows.length ? ` / ${TPT.data.rows.length}` : "");
+  document.getElementById("tptFooter").textContent =
+    `${rows.length} producto${rows.length !== 1 ? "s" : ""}${TPT.data.rows.length !== rows.length ? ` de ${TPT.data.rows.length} totales` : ""}`;
+
+  renderTPTKpis(rows);
+}
+
+function _tptPctChip(val) {
+  if (val === null || val === undefined) return `<span style="color:#bbb">—</span>`;
+  const cls = val >= 90 ? "pct-green" : val >= 80 ? "pct-yellow" : val >= 70 ? "pct-orange" : "pct-red";
+  return `<span class="pct-chip ${cls}">${val.toFixed(1)}%</span>`;
+}
+
+function renderTPTKpis(rows) {
+  const grid = document.getElementById("tptKpiGrid");
+  if (!grid) return;
+
+  if (!rows.length) {
+    grid.innerHTML = "";
+    return;
+  }
+
+  const ventaTotal = rows.reduce((s, r) => s + (r.venta_mtd || 0), 0);
+  const withCumpl  = rows.filter(r => r.cumplimiento !== null);
+  const cumplProm  = withCumpl.length
+    ? withCumpl.reduce((s, r) => s + r.cumplimiento, 0) / withCumpl.length : null;
+  const stockTotal = rows.reduce((s, r) => s + (r.stock || 0), 0);
+  const sinStock   = rows.filter(r => r.stock !== null && r.stock === 0).length;
+  const dohBajo    = rows.filter(r => r.doh !== null && r.doh < 7).length;
+
+  const cumplColor = cumplProm === null ? "s-neu"
+    : cumplProm >= 90 ? "s-green" : cumplProm >= 80 ? "s-yellow"
+    : cumplProm >= 70 ? "s-orange" : "s-red";
+
+  grid.innerHTML = `
+    <div class="kpi-s s-neu">
+      <div>
+        <div class="kpi-s-lbl">Venta MTD</div>
+        <div class="kpi-s-val kpi-s-val--sm">${ventaTotal.toLocaleString("es-CL")}</div>
+        <div class="kpi-s-sub">unidades · mes en curso</div>
+      </div><div class="kpi-s-dot"></div>
+    </div>
+    <div class="kpi-s ${cumplColor}">
+      <div>
+        <div class="kpi-s-lbl">Cumplimiento Prom.</div>
+        <div class="kpi-s-val">${cumplProm !== null ? cumplProm.toFixed(1)+"%" : "—"}</div>
+        <div class="kpi-s-sub">vs forecast S&OP</div>
+      </div><div class="kpi-s-dot"></div>
+    </div>
+    <div class="kpi-s s-neu">
+      <div>
+        <div class="kpi-s-lbl">Stock Total</div>
+        <div class="kpi-s-val kpi-s-val--sm">${stockTotal.toLocaleString("es-CL")}</div>
+        <div class="kpi-s-sub">unidades en bodega</div>
+      </div><div class="kpi-s-dot"></div>
+    </div>
+    <div class="kpi-s ${sinStock > 0 ? "s-red" : "s-green"}">
+      <div>
+        <div class="kpi-s-lbl">Sin Stock</div>
+        <div class="kpi-s-val">${sinStock}</div>
+        <div class="kpi-s-sub">productos en cero</div>
+      </div><div class="kpi-s-dot"></div>
+    </div>
+    <div class="kpi-s ${dohBajo > 0 ? "s-red" : "s-green"}">
+      <div>
+        <div class="kpi-s-lbl">DOH &lt; 7 días</div>
+        <div class="kpi-s-val">${dohBajo}</div>
+        <div class="kpi-s-sub">productos críticos</div>
+      </div><div class="kpi-s-dot"></div>
+    </div>`;
+}
+
+function resetTrackingPT() {
+  document.getElementById("tptSearch").value    = "";
+  document.getElementById("tptCategoria").value = "";
+  document.getElementById("tptAroma").value     = "";
+  document.getElementById("tptAbc").value       = "";
+  filterTrackingPT();
 }

@@ -1097,6 +1097,77 @@ def api_spotia_clientes():
     return jsonify(sorted(df["cliente"].dropna().unique().tolist()))
 
 
+# ── TRACKING PT ───────────────────────────────────────────────────────────────
+_TRACKING_PT_FILE = os.getenv(
+    "TRACKING_PT_FILE",
+    r"C:\Users\FranciscaLagos\OneDrive - Spot Essence\Escritorio\Tracking Diario\(25) Tracking Diario 24-06-2026.xlsx"
+)
+_tracking_pt_cache: dict | None = None
+
+def _load_tracking_pt() -> dict:
+    global _tracking_pt_cache
+    if _tracking_pt_cache is not None:
+        return _tracking_pt_cache
+
+    df = pd.read_excel(_TRACKING_PT_FILE, sheet_name="Tracking PT", header=6)
+
+    def _clean(v):
+        if v is None: return ""
+        try:
+            if pd.isna(v): return ""
+        except: pass
+        s = str(v).strip()
+        return "" if s.lower() in {"nan","none","null","n/a","na","-"} else s
+
+    def _num(v, pct=False):
+        try:
+            f = float(v)
+            return None if pd.isna(f) else (round(f * 100, 1) if pct else f)
+        except: return None
+
+    rows = []
+    for _, r in df.iterrows():
+        ean = _clean(r.get("EAN",""))
+        if not ean: continue
+        # normalise EAN: remove .0 suffix
+        if ean.endswith(".0"): ean = ean[:-2]
+
+        rows.append({
+            "ean":          ean,
+            "producto":     _clean(r.get("PRODUCTO","")),
+            "marca":        _clean(r.get("Marca","")),
+            "categoria":    _clean(r.iloc[3]),   # CATEGORÍA (col index 3, encoding issue)
+            "aroma":        _clean(r.iloc[4]),   # AROMA
+            "abc":          _clean(r.get("ABC","")),
+            "venta_mtd":    _num(r.get("VENTA MTD")),
+            "cumplimiento": _num(r.get("CUMPLIMIENTO"), pct=True),
+            "fa":           _num(r.get("FORECAST ACCURACY"), pct=True),
+            "stock":        _num(r.get("STOCK")),
+            "doh":          _num(r.get("DOH")),
+            "doh_prod":     _num(r.get("DOH + PROD")),
+            "gap":          _num(r.get("GAP")),
+            "oc_pendiente": _num(r.get("OC CLIENTE PENDIENTE")),
+            "comentario":   _clean(r.get("COMENTARIO","")),
+        })
+
+    categorias = sorted({r["categoria"] for r in rows if r["categoria"]})
+    aromas     = sorted({r["aroma"]     for r in rows if r["aroma"]})
+    abcs       = sorted({r["abc"]       for r in rows if r["abc"]})
+
+    _tracking_pt_cache = {"rows": rows, "categorias": categorias, "aromas": aromas, "abcs": abcs}
+    return _tracking_pt_cache
+
+
+@app.route("/api/tracking-pt")
+def api_tracking_pt():
+    try:
+        data = _load_tracking_pt()
+        return jsonify(data)
+    except Exception as e:
+        log.error(f"Error loading Tracking PT: {e}")
+        return jsonify({"error": str(e), "rows": [], "categorias": [], "aromas": [], "abcs": []}), 500
+
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
