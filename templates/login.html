@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPOT ESSENCE — Acceso</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: #0a0a0a;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* fondo con gradiente sutil */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse at 30% 40%, rgba(212,175,55,0.08) 0%, transparent 60%),
+                  radial-gradient(ellipse at 70% 70%, rgba(255,255,255,0.03) 0%, transparent 50%);
+      pointer-events: none;
+    }
+
+    .login-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(212,175,55,0.25);
+      border-radius: 16px;
+      padding: 52px 48px 44px;
+      width: 100%;
+      max-width: 400px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 32px 64px rgba(0,0,0,0.5);
+    }
+
+    .logo-area {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    .logo-mark {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, #d4af37, #f5e176);
+      border-radius: 14px;
+      margin-bottom: 16px;
+      font-size: 22px;
+      font-weight: 700;
+      color: #0a0a0a;
+      letter-spacing: -1px;
+    }
+
+    .brand-name {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: #d4af37;
+    }
+
+    .brand-sub {
+      font-size: 11px;
+      color: rgba(255,255,255,0.35);
+      margin-top: 4px;
+      letter-spacing: 1px;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 600;
+      color: #fff;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      font-size: 12px;
+      color: rgba(255,255,255,0.4);
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.5);
+      margin-bottom: 8px;
+    }
+
+    input[type="password"] {
+      width: 100%;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      padding: 13px 16px;
+      font-size: 15px;
+      font-family: 'Montserrat', sans-serif;
+      color: #fff;
+      outline: none;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    input[type="password"]:focus {
+      border-color: rgba(212,175,55,0.6);
+      background: rgba(212,175,55,0.06);
+    }
+
+    .error-msg {
+      margin-top: 10px;
+      padding: 10px 14px;
+      background: rgba(220,53,69,0.15);
+      border: 1px solid rgba(220,53,69,0.35);
+      border-radius: 7px;
+      font-size: 12px;
+      color: #f8a5ae;
+    }
+
+    button[type="submit"] {
+      width: 100%;
+      margin-top: 24px;
+      padding: 14px;
+      background: linear-gradient(135deg, #d4af37, #c49b2a);
+      border: none;
+      border-radius: 8px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #0a0a0a;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+
+    button[type="submit"]:hover  { opacity: 0.9; }
+    button[type="submit"]:active { transform: scale(0.98); }
+
+    .footer-note {
+      margin-top: 28px;
+      text-align: center;
+      font-size: 11px;
+      color: rgba(255,255,255,0.2);
+    }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="logo-area">
+      <div class="logo-mark">SE</div>
+      <div class="brand-name">Spot Essence</div>
+      <div class="brand-sub">Supply Chain Intelligence</div>
+    </div>
+
+    <h1>Acceso al Visor</h1>
+    <p class="subtitle">Ingresa la contraseña de tu equipo</p>
+
+    <form method="post" action="/login">
+      <label for="password">Contraseña</label>
+      <input type="password" id="password" name="password" autofocus autocomplete="current-password" placeholder="••••••••••••">
+      {% if error %}
+      <div class="error-msg">{{ error }}</div>
+      {% endif %}
+      <button type="submit">Ingresar</button>
+    </form>
+
+    <div class="footer-note">Solo para uso interno — Spot Essence</div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPOT ESSENCE — Gestión Comercial</title>
+<link rel="icon" type="image/png" href="/static/img/logo.png">
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+<!-- Bootstrap 5 -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<!-- DataTables -->
+<link href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+<link href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css" rel="stylesheet">
+
+<!-- Custom -->
+<link href="/static/css/spot.css" rel="stylesheet">
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════
+     NAV — idéntico a spotessence.cl (fondo negro)
+════════════════════════════════════════════════════════════════ -->
+<nav class="spot-nav">
+  <a href="/" class="nav-logo-link">
+    <img src="/static/img/logo.png" alt="SPOT ESSENCE" class="nav-logo">
+  </a>
+  <div class="nav-sep"></div>
+  <span class="nav-module">Gestión Comercial</span>
+
+  <div class="nav-right ms-auto">
+    <span class="dot-live" id="statusDot"></span>
+    <span class="nav-time" id="navTime">Cargando...</span>
+    <button class="btn-refresh-nav" id="btnRefreshNav" onclick="manualRefresh()">
+      ↻ Actualizar
+    </button>
+    <span class="nav-mes" id="navMes">JUNIO 2026</span>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════════════════════════════
+     LAYOUT
+════════════════════════════════════════════════════════════════ -->
+<div class="spot-layout">
+
+  <!-- ─── SIDEBAR ─── -->
+  <aside class="spot-sidebar">
+    <div class="sb-group">
+      <div class="sb-label">Logística</div>
+      <a href="#" class="sb-item active" onclick="showSection('dashboard')">Dashboard</a>
+      <a href="#" class="sb-item" onclick="showSection('bodetalle')">
+        Detalle Back Order
+        <span class="sb-badge red" id="badgeBoDetalle">—</span>
+      </a>
+      <a href="#" class="sb-item" onclick="showSection('frhistorico')">Fill Rate Histórico</a>
+    </div>
+
+    <div class="sb-group">
+      <div class="sb-label">Asistente</div>
+      <a href="#" class="sb-item sb-spotia" onclick="showSection('spotia')">
+        <span class="spotia-sb-icon">✦</span> SpotIA
+      </a>
+    </div>
+
+    <!-- Última actualización -->
+    <div class="sidebar-footer">
+      <div class="sf-label">Último refresco</div>
+      <div class="sf-time" id="sidebarTime">—</div>
+      <div class="sf-label" style="margin-top:4px">Próximo en</div>
+      <div class="sf-countdown" id="countdown">—</div>
+    </div>
+  </aside>
+
+  <!-- ─── MAIN ─── -->
+  <main class="spot-main" id="mainContent">
+
+    <!-- Error banner -->
+    <div id="errorBanner" class="error-banner d-none">
+      ⚠️ <strong>Error leyendo datos:</strong> <span id="errorMsg"></span>
+      — Mostrando última información disponible.
+    </div>
+
+    <!-- ══ SECCIÓN: DASHBOARD ══ -->
+    <section id="sectionDashboard">
+
+      <div class="page-header">
+        <h1 class="page-title">Tablero de Servicio Comercial</h1>
+        <p class="page-sub">
+          Referencia: Fecha de Despacho ·
+          <span id="mesLabel">—</span> ·
+          <span class="ph-pill">KAM · GERENCIA COMERCIAL · DIRECCIÓN</span>
+        </p>
+      </div>
+
+      <!-- Leyenda semáforo -->
+      <div class="legend-bar">
+        <span class="legend-title">Semáforo Fill Rate</span>
+        <div class="leg-i"><div class="leg-dot" style="background:#16a34a"></div>≥95% Óptimo</div>
+        <div class="leg-i"><div class="leg-dot" style="background:#eab308"></div>90–94.9% Atención</div>
+        <div class="leg-i"><div class="leg-dot" style="background:#ea580c"></div>80–89.9% Riesgo</div>
+        <div class="leg-i"><div class="leg-dot" style="background:#dc2626"></div>&lt;80% Crítico</div>
+      </div>
+
+      <!-- KPI CARDS -->
+      <div class="kpi-grid" id="kpiGrid">
+        <!-- Generado por JS -->
+        <div class="kpi-skeleton"></div>
+        <div class="kpi-skeleton"></div>
+        <div class="kpi-skeleton"></div>
+        <div class="kpi-skeleton"></div>
+        <div class="kpi-skeleton"></div>
+        <div class="kpi-skeleton"></div>
+      </div>
+
+      <!-- CONTENT ROW -->
+      <div class="content-row">
+
+        <!-- Tabla OCs Pendientes -->
+        <div class="panel flex-grow-1">
+          <div class="panel-head">
+            <span class="panel-title">OCs Pendientes</span>
+            <span class="panel-count" id="tableCount">—</span>
+            <div class="panel-filters ms-auto">
+              <input type="text" id="searchInput" class="search-inp" placeholder="Buscar cliente u OC...">
+              <select id="filtroEstado" class="filter-select">
+                <option value="">Todos los estados</option>
+                <option value="VENCIDA">Vencidas</option>
+                <option value="BACK ORDER">Back Order</option>
+                <option value="PENDIENTE">Pendiente</option>
+              </select>
+              <button class="clear-btn" id="btnClearFilters" onclick="clearFilters()" style="display:none">Limpiar filtros</button>
+              <a href="/api/export/csv" class="exp-btn" target="_blank">↓ CSV</a>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table id="ocTable" class="spot-table w-100">
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>OC</th>
+                  <th>F. Despacho</th>
+                  <th>Fill Rate</th>
+                  <th>Valor Total OC</th>
+                  <th>Valor Facturado</th>
+                  <th>BO Valorizado</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="ocTableBody">
+                <tr><td colspan="8" class="text-center py-4 text-muted">Cargando datos...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Ranking Clientes en Riesgo -->
+        <div class="rank-panel">
+          <div class="rank-head">
+            <div class="rank-title">Back Order por Producto</div>
+            <div class="rank-sub">OCs en curso · Mayor a menor BO</div>
+          </div>
+          <div id="rankingBody">
+            <div class="p-4 text-center text-muted" style="font-size:12px">Cargando...</div>
+          </div>
+        </div>
+
+      </div><!-- /content-row -->
+    </section>
+
+    <!-- ══ SECCIÓN: FILL RATE ══ -->
+    <section id="sectionFillrate" class="d-none">
+      <div class="page-header">
+        <h1 class="page-title">Análisis Fill Rate</h1>
+        <p class="page-sub">Por cliente · Mes actual</p>
+      </div>
+      <div class="panel" style="padding:24px">
+        <canvas id="frChart" height="300"></canvas>
+      </div>
+    </section>
+
+    <!-- ══ SECCIÓN: BACK ORDER ══ -->
+    <section id="sectionBackorder" class="d-none">
+      <div class="page-header">
+        <h1 class="page-title">Back Order</h1>
+        <p class="page-sub">Unidades pendientes por cliente</p>
+      </div>
+      <div class="panel" style="padding:24px">
+        <canvas id="boChart" height="300"></canvas>
+      </div>
+    </section>
+
+    <!-- ══ SECCIÓN: POR CLIENTE ══ -->
+    <section id="sectionClientes" class="d-none">
+      <div class="page-header">
+        <h1 class="page-title">Vista por Cliente</h1>
+        <p class="page-sub">Resumen de servicio por cuenta</p>
+      </div>
+      <div id="clientesGrid" class="clientes-grid"></div>
+    </section>
+
+    <!-- ══ SECCIÓN: FILL RATE HISTÓRICO ══ -->
+    <section id="sectionFrhistorico" class="d-none">
+      <div class="page-header">
+        <h1 class="page-title">Fill Rate Histórico</h1>
+        <p class="page-sub">Evolución por cliente · Referencia: Fecha de Despacho · <span class="ph-pill">KAM · GERENCIA COMERCIAL</span></p>
+      </div>
+
+      <!-- Filtros globales -->
+      <div class="panel frh-filter-bar">
+        <div class="frh-filters">
+          <div class="frh-fg">
+            <label class="frh-lbl">Cliente</label>
+            <select id="frhCliente" class="filter-select" style="min-width:170px" onchange="filterFrh()">
+              <option value="">Todos los clientes</option>
+            </select>
+          </div>
+          <button class="clear-btn" onclick="clearFrhFilters()">Limpiar filtros</button>
+          <a id="frhExportAll" href="/api/export/fr-historico-csv" class="exp-btn" target="_blank">↓ CSV</a>
+        </div>
+      </div>
+
+      <!-- Tab nav -->
+      <div class="frh-tab-nav">
+        <button class="frh-tab frh-tab-active" data-tab="consulta" onclick="switchFrhTab('consulta')">Consulta</button>
+        <button class="frh-tab" data-tab="semanal"  onclick="switchFrhTab('semanal')">Semanal</button>
+        <button class="frh-tab" data-tab="mensual"  onclick="switchFrhTab('mensual')">Mensual</button>
+      </div>
+
+      <!-- ─── Subsección CONSULTA ──────────────────────────────────── -->
+      <div id="frhTabConsulta">
+
+        <!-- Filtros de búsqueda -->
+        <div class="panel frh-panel" style="padding:18px 20px;margin-bottom:12px">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:12px;align-items:end">
+            <div class="frh-fg">
+              <label class="frh-lbl">N° de OC</label>
+              <input id="cOcSearch" type="text" class="filter-select" placeholder="Buscar número de OC…"
+                style="width:100%" oninput="debounceFrhConsulta()" onkeydown="if(event.key==='Enter')searchFrhConsulta()">
+            </div>
+            <div class="frh-fg">
+              <label class="frh-lbl">Cliente</label>
+              <select id="cCliente" class="filter-select" style="width:100%" onchange="searchFrhConsulta()">
+                <option value="">Todos los clientes</option>
+              </select>
+            </div>
+            <div class="frh-fg">
+              <label class="frh-lbl">Desde</label>
+              <input id="cFechaDesde" type="date" class="filter-select" style="width:100%" onchange="searchFrhConsulta()">
+            </div>
+            <div class="frh-fg">
+              <label class="frh-lbl">Hasta</label>
+              <input id="cFechaHasta" type="date" class="filter-select" style="width:100%" onchange="searchFrhConsulta()">
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="clear-btn" onclick="clearFrhConsulta()">Limpiar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabla de OCs -->
+        <div class="panel frh-panel" id="cOcPanel">
+          <div class="panel-head">
+            <span class="panel-title">Órdenes de Compra</span>
+            <span class="panel-count" id="cOcCount">—</span>
+            <span class="rank-sub" style="margin-left:8px" id="cOcSub">Ingresa una OC o aplica filtros para buscar</span>
+          </div>
+          <div class="table-responsive">
+            <table class="spot-table w-100">
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>N° OC</th>
+                  <th style="text-align:center">Fecha Despacho</th>
+                  <th style="text-align:center">Valor OC</th>
+                  <th style="text-align:center">Valor Facturado</th>
+                  <th style="text-align:center">Fill Rate</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="cOcBody">
+                <tr><td colspan="7" class="text-center py-4 text-muted">Ingresa una OC o aplica filtros para buscar</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /frhTabConsulta -->
+
+      <!-- ─── Subsección MENSUAL ─────────────────────────────────── -->
+      <div id="frhTabMensual" style="display:none">
+
+        <!-- Selector de meses -->
+        <div class="panel frh-panel" style="padding:14px 20px;margin-bottom:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <span style="font-size:8px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#888">Seleccionar meses</span>
+            <button class="clear-btn" style="font-size:9px" onclick="clearFrhMonths()">Quitar selección</button>
+          </div>
+          <div id="frhMonthPills" style="display:flex;gap:6px;flex-wrap:wrap">
+            <!-- Generado por JS -->
+          </div>
+        </div>
+
+        <!-- KPI cards mensuales -->
+        <div class="frh-kpi-row" id="frhKpis">
+          <div class="kpi-skeleton" style="height:90px;flex:1"></div>
+          <div class="kpi-skeleton" style="height:90px;flex:1"></div>
+          <div class="kpi-skeleton" style="height:90px;flex:1"></div>
+          <div class="kpi-skeleton" style="height:90px;flex:1"></div>
+          <div class="kpi-skeleton" style="height:90px;flex:1"></div>
+          <div class="kpi-skeleton" style="height:90px;flex:1"></div>
+        </div>
+
+        <!-- Gráfico tendencia mensual (siempre muestra últimos 12 meses) -->
+        <div class="panel frh-panel">
+          <div class="panel-head">
+            <span class="panel-title">Tendencia Fill Rate</span>
+            <span class="rank-sub" style="margin-left:8px">últimos 12 meses · fecha de despacho</span>
+          </div>
+          <div style="position:relative;height:115px">
+            <canvas id="frhMonthChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Tabla por cliente (período seleccionado) -->
+        <div class="panel frh-panel">
+          <div class="panel-head">
+            <span class="panel-title">Por Cliente</span>
+            <span class="panel-count" id="frhMensualCount">—</span>
+            <a id="frhExportMensual" href="/api/export/fr-historico-csv?tipo=mensual" class="exp-btn ms-auto" target="_blank">↓ CSV</a>
+          </div>
+          <div class="table-responsive">
+            <table class="spot-table w-100">
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th style="text-align:center">Fill Rate</th>
+                  <th style="text-align:center">Despachos</th>
+                  <th style="text-align:center">Valor Total OC</th>
+                  <th style="text-align:center">Valor Facturado</th>
+                  <th style="text-align:center">Valor BO</th>
+                </tr>
+              </thead>
+              <tbody id="frhMensualBody">
+                <tr><td colspan="6" class="text-center py-4 text-muted">Cargando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tabla por Producto (visible solo cuando hay cliente seleccionado) -->
+        <div class="panel frh-panel" id="frhProductPanel" style="display:none">
+          <div class="panel-head">
+            <span class="panel-title">Por Producto</span>
+            <span class="panel-count" id="frhProductCount">—</span>
+            <span class="rank-sub" style="margin-left:8px">ordenado de peor a mejor FR</span>
+          </div>
+          <div class="table-responsive">
+            <table class="spot-table w-100">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th style="text-align:center">Fill Rate</th>
+                  <th style="text-align:center">Valor Solicitado</th>
+                  <th style="text-align:center">Valor Asignado</th>
+                  <th style="text-align:center">Valor BO</th>
+                  <th style="text-align:center">Detalle</th>
+                </tr>
+              </thead>
+              <tbody id="frhProductBody">
+                <tr><td colspan="6" class="text-center py-4 text-muted">Selecciona un cliente para ver el detalle por producto</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /frhTabMensual -->
+
+      <!-- ─── Subsección SEMANAL ─────────────────────────────────── -->
+      <div id="frhTabSemanal" style="display:none">
+
+        <!-- Selector de semanas -->
+        <div class="panel frh-panel" style="padding:14px 20px;margin-bottom:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <span style="font-size:8px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#888">Seleccionar semanas</span>
+            <button class="clear-btn" style="font-size:9px" onclick="clearFrhWeeks()">Quitar selección</button>
+          </div>
+          <div id="frhWeekPills" style="display:flex;gap:6px;flex-wrap:wrap">
+            <!-- Generado por JS -->
+          </div>
+        </div>
+
+        <!-- KPI cards semanales -->
+        <div class="frh-kpi-row" id="frhKpisW">
+          <div class="kpi-skeleton" style="height:90px;flex:1"></div>
+          <div class="kpi-skeleton" style="height:90px;flex:1"></div>
+          <div class="kpi-skeleton" style="height:90px;flex:1"></div>
+          <div class="kpi-skeleton" style="height:90px;flex:1"></div>
+          <div class="kpi-skeleton" style="height:90px;flex:1"></div>
+          <div class="kpi-skeleton" style="height:90px;flex:1"></div>
+        </div>
+
+        <!-- Gráfico tendencia semanal -->
+        <div class="panel frh-panel">
+          <div class="panel-head">
+            <span class="panel-title">Tendencia Fill Rate</span>
+            <span class="rank-sub" style="margin-left:8px">últimas 12 semanas · fecha de despacho</span>
+          </div>
+          <div style="position:relative;height:115px">
+            <canvas id="frhWeekChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Tabla por cliente semanal -->
+        <div class="panel frh-panel">
+          <div class="panel-head">
+            <span class="panel-title">Por Cliente</span>
+            <span class="panel-count" id="frhClienteWCount">—</span>
+          </div>
+          <div class="table-responsive">
+            <table class="spot-table w-100">
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th style="text-align:center">Fill Rate</th>
+                  <th style="text-align:center">Despachos</th>
+                  <th style="text-align:center">Valor Total OC</th>
+                  <th style="text-align:center">Valor Facturado</th>
+                  <th style="text-align:center">Valor BO</th>
+                </tr>
+              </thead>
+              <tbody id="frhClienteWBody">
+                <tr><td colspan="6" class="text-center py-4 text-muted">Cargando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tabla por producto semanal (visible solo cuando hay cliente seleccionado) -->
+        <div class="panel frh-panel" id="frhProductWPanel" style="display:none">
+          <div class="panel-head">
+            <span class="panel-title">Por Producto</span>
+            <span class="panel-count" id="frhProductWCount">—</span>
+            <span class="rank-sub" style="margin-left:8px">ordenado de peor a mejor FR</span>
+          </div>
+          <div class="table-responsive">
+            <table class="spot-table w-100">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th style="text-align:center">Fill Rate</th>
+                  <th style="text-align:center">Valor Solicitado</th>
+                  <th style="text-align:center">Valor Asignado</th>
+                  <th style="text-align:center">Valor BO</th>
+                  <th style="text-align:center">Detalle</th>
+                </tr>
+              </thead>
+              <tbody id="frhProductWBody">
+                <tr><td colspan="6" class="text-center py-4 text-muted">Selecciona un cliente para ver el detalle por producto</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /frhTabSemanal -->
+    </section>
+
+    <!-- ══ SECCIÓN: DETALLE BACK ORDER ══ -->
+    <section id="sectionBodetalle" class="d-none">
+      <div class="page-header">
+        <h1 class="page-title">Detalle Back Order</h1>
+        <p class="page-sub">Bandeja operacional · Unidades pendientes por SKU · <span class="ph-pill">SUPPLY CHAIN · SAC · KAM · GERENCIA</span></p>
+      </div>
+
+      <!-- Leyenda semáforo propia -->
+      <div class="legend-bar" style="margin-bottom:12px">
+        <span class="legend-title">Semáforo FR SKU</span>
+        <div class="leg-i"><div class="leg-dot" style="background:#16a34a"></div>≥95% Óptimo</div>
+        <div class="leg-i"><div class="leg-dot" style="background:#eab308"></div>85–94.9% Atención</div>
+        <div class="leg-i"><div class="leg-dot" style="background:#ea580c"></div>80–84.9% Riesgo</div>
+        <div class="leg-i"><div class="leg-dot" style="background:#dc2626"></div>&lt;80% Crítico</div>
+      </div>
+
+      <!-- Panel tabla -->
+      <div class="panel" style="margin-bottom:16px">
+        <div class="panel-head" style="flex-wrap:wrap;gap:8px;align-items:center">
+          <span class="panel-title">Back Order por SKU</span>
+          <span class="panel-count" id="boDetailCount">—</span>
+          <div class="panel-filters ms-auto" style="flex-wrap:wrap;gap:6px">
+            <input type="text" id="boSearch"         class="search-inp"  placeholder="Buscar cliente, OC o producto...">
+            <select           id="boFilterCliente"   class="filter-select"><option value="">Todos los clientes</option></select>
+            <input type="text" id="boFilterOc"       class="search-inp"  placeholder="Filtrar OC..." style="width:110px">
+            <input type="text" id="boFilterProducto" class="search-inp"  placeholder="Producto..." style="width:120px">
+            <button class="clear-btn" id="btnClearBoFilters" onclick="clearBoFilters()">Limpiar filtros</button>
+            <a id="boCsvLink" href="/api/export/backorder-csv" class="exp-btn" target="_blank">↓ CSV</a>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="spot-table w-100">
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th>OC</th>
+                <th>F. Despacho</th>
+                <th>Producto</th>
+                <th class="col-money">UN Solic.</th>
+                <th class="col-money">UN Asig.</th>
+                <th class="col-money">UN Pend.</th>
+                <th>FR SKU</th>
+                <th class="col-money">BO Valorizado</th>
+                <th>Comentario</th>
+              </tr>
+            </thead>
+            <tbody id="boDetailBody">
+              <tr><td colspan="10" class="text-center py-4 text-muted">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Árbol de pérdida -->
+      <div class="panel" style="padding:20px 24px">
+        <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:20px">
+          <span class="panel-title">Árbol de Pérdida — Motivo Back Order</span>
+          <span style="font-size:11px;color:#888;font-weight:500">según filtros aplicados</span>
+        </div>
+        <div style="display:flex;gap:32px;align-items:flex-start;flex-wrap:wrap">
+          <div style="width:260px;flex-shrink:0">
+            <canvas id="lossTreeChart"></canvas>
+          </div>
+          <div style="flex:1;min-width:280px" id="lossTreeTable"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ SECCIÓN: OCs ══ -->
+    <section id="sectionOcs" class="d-none">
+      <div class="page-header">
+        <h1 class="page-title">Todas las OCs Pendientes</h1>
+        <p class="page-sub">Vista completa · Sin cerradas</p>
+      </div>
+      <!-- reutiliza los mismos datos del dashboard -->
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">OCs Pendientes</span>
+          <span class="panel-count" id="tableCount2">—</span>
+          <a href="/api/export/csv" class="exp-btn ms-auto" target="_blank">↓ Exportar CSV</a>
+        </div>
+        <div class="table-responsive">
+          <table id="ocTable2" class="spot-table w-100">
+            <thead>
+              <tr>
+                <th>Cliente</th><th>OC</th><th>F. Despacho</th>
+                <th>Fill Rate</th><th>Estado</th><th>UN Pendientes</th>
+                <th>Comentario</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="ocTableBody2">
+              <tr><td colspan="8" class="text-center py-4 text-muted">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ SECCIÓN: SpotIA ══ -->
+    <section id="sectionSpotia" class="d-none">
+      <div class="spotia-shell">
+
+        <!-- Header -->
+        <div class="spotia-header">
+          <div class="spotia-header-left">
+            <div class="spotia-logo">✦</div>
+            <div>
+              <div class="spotia-title">SpotIA</div>
+              <div class="spotia-subtitle">Asistente Inteligente Fill Rate &amp; Supply Chain</div>
+            </div>
+          </div>
+          <div class="spotia-header-right">
+            <select id="spotiaClienteCtx" class="spotia-select">
+              <option value="">Todos los clientes</option>
+            </select>
+            <button class="spotia-mode-btn" onclick="spotiaMode('executive')" title="Resumen Ejecutivo">
+              📊 Resumen Ejecutivo
+            </button>
+            <button class="spotia-mode-btn" onclick="spotiaMode('comercial')" title="Preparar Reunión">
+              🤝 Preparar Reunión
+            </button>
+            <button class="spotia-mode-btn" onclick="spotiaMode('riesgos')" title="Analizar Riesgos">
+              ⚠️ Analizar Riesgos
+            </button>
+          </div>
+        </div>
+
+        <!-- Preguntas sugeridas -->
+        <div class="spotia-suggestions" id="spotiaSuggestions">
+          <span class="spotia-sug-label">Preguntas frecuentes:</span>
+          <button class="spotia-chip" onclick="spotiaAsk('¿Cuál es el Fill Rate MTD global?')">FR MTD global</button>
+          <button class="spotia-chip" onclick="spotiaAsk('¿Qué clientes tienen el peor Fill Rate este mes?')">Peor FR del mes</button>
+          <button class="spotia-chip" onclick="spotiaAsk('¿Cuánto Back Order tenemos actualmente?')">Back Order total</button>
+          <button class="spotia-chip" onclick="spotiaAsk('¿Cuáles son las OCs más críticas?')">OCs críticas</button>
+          <button class="spotia-chip" onclick="spotiaAsk('¿Qué productos explican el mayor Back Order?')">Top SKU con BO</button>
+          <button class="spotia-chip" onclick="spotiaAsk('¿Cuánto hemos facturado este mes?')">Facturación MTD</button>
+          <button class="spotia-chip" onclick="spotiaAsk('¿Qué pedidos están vencidos?')">Pedidos vencidos</button>
+          <button class="spotia-chip" onclick="spotiaAsk('¿Cuál fue la evolución del Fill Rate en los últimos 6 meses?')">Evolución FR</button>
+        </div>
+
+        <!-- Área de chat -->
+        <div class="spotia-chat" id="spotiaChat">
+          <div class="spotia-welcome">
+            <div class="spotia-welcome-icon">✦</div>
+            <div class="spotia-welcome-title">Hola, soy SpotIA</div>
+            <div class="spotia-welcome-text">
+              Puedo responder cualquier pregunta sobre Fill Rate, Back Orders, OCs, clientes y productos
+              utilizando los datos actuales del dashboard. ¿En qué te puedo ayudar?
+            </div>
+          </div>
+        </div>
+
+        <!-- Input -->
+        <div class="spotia-input-area">
+          <div class="spotia-input-wrap">
+            <textarea id="spotiaInput" class="spotia-input" rows="1"
+              placeholder="Pregunta sobre Fill Rate, Back Orders, clientes, OCs..."
+              onkeydown="spotiaKeydown(event)"></textarea>
+            <button class="spotia-send" id="spotiaSendBtn" onclick="spotiaSubmit()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </button>
+          </div>
+          <div class="spotia-input-hint">Presiona Enter para enviar · Shift+Enter para nueva línea</div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     MODAL DRILL-DOWN
+════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="ocModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content spot-modal">
+
+      <div class="modal-header spot-modal-header" id="modalHeader">
+        <div class="modal-header-info">
+          <h5 class="modal-client" id="modalClient">—</h5>
+          <p class="modal-oc-info" id="modalOcInfo">—</p>
+        </div>
+        <div class="modal-fr-block">
+          <div class="modal-fr-label">Fill Rate OC</div>
+          <div class="modal-fr-value" id="modalFr">—</div>
+        </div>
+        <button type="button" class="modal-close-btn" data-bs-dismiss="modal">✕</button>
+      </div>
+
+      <div class="modal-body spot-modal-body" id="modalBody">
+        <div class="text-center py-5 text-muted">Cargando detalle...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+<script src="/static/js/dashboard.js"></script>
+</body>
+</html>

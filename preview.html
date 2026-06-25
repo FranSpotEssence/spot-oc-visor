@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPOT ESSENCE — Gestión Comercial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --c-green:#16a34a;--c-yellow:#ca8a04;--c-orange:#ea580c;--c-red:#dc2626;
+  --bg-green:#dcfce7;--bg-yellow:#fef9c3;--bg-orange:#ffedd5;--bg-red:#fee2e2;
+  --border:#e4e4e4;--radius:10px;--shadow:0 1px 4px rgba(0,0,0,.08)
+}
+body{font-family:'Montserrat','Segoe UI',sans-serif;background:#f0f2f5;color:#1a1a1a;font-size:13px}
+
+/* NAV */
+.spot-nav{background:#000;height:60px;display:flex;align-items:center;padding:0 28px;gap:16px;position:sticky;top:0;z-index:1000;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.nav-logo{height:34px;filter:invert(1);object-fit:contain}
+.nav-sep{width:1px;height:26px;background:#333;margin:0 14px}
+.nav-module{color:#fff;font-size:9px;letter-spacing:3px;text-transform:uppercase;font-weight:600}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+.dot-live{width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.nav-time{color:#888;font-size:9px}
+.btn-refresh-nav{background:transparent;border:1px solid #444;color:#ccc;border-radius:6px;padding:5px 12px;font-size:9px;font-family:inherit;cursor:pointer;font-weight:600;letter-spacing:.5px;transition:all .2s}
+.btn-refresh-nav:hover{background:#fff;color:#000;border-color:#fff}
+.nav-mes{background:#fff;color:#000;font-size:8px;font-weight:800;padding:4px 12px;border-radius:20px;letter-spacing:1.5px}
+
+/* LAYOUT */
+.spot-layout{display:flex;min-height:calc(100vh - 60px)}
+
+/* SIDEBAR */
+.spot-sidebar{width:192px;background:#fff;border-right:1px solid var(--border);padding:18px 0 0;flex-shrink:0;display:flex;flex-direction:column;position:sticky;top:60px;height:calc(100vh - 60px);overflow-y:auto}
+.sb-group{padding:0 12px;margin-bottom:4px}
+.sb-label{font-size:7.5px;letter-spacing:2px;color:#c0c0c0;text-transform:uppercase;font-weight:700;padding:12px 4px 6px}
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:500;color:#666;margin-bottom:2px;text-decoration:none;transition:background .15s,color .15s}
+.sb-item:hover{background:#f5f5f5;color:#000}
+.sb-item.active{background:#000;color:#fff;font-weight:700}
+.sb-icon{font-size:14px;width:18px;text-align:center}
+.sb-badge{margin-left:auto;font-size:8px;font-weight:700;padding:2px 7px;border-radius:10px;color:#fff}
+.sb-badge.red{background:#dc2626}.sb-badge.amber{background:#d97706}
+.sidebar-footer{margin-top:auto;padding:16px 14px;border-top:1px solid var(--border);background:#fafafa}
+.sf-label{font-size:8px;color:#bbb;text-transform:uppercase;letter-spacing:1px;font-weight:600}
+.sf-time{font-size:10px;color:#555;font-weight:600;margin-top:2px}
+.sf-cd{font-size:14px;color:#000;font-weight:800;margin-top:2px}
+
+/* MAIN */
+.spot-main{flex:1;padding:26px 28px;overflow-x:hidden;min-width:0}
+.page-title{font-size:22px;font-weight:900;color:#000;letter-spacing:-.5px;margin-bottom:3px}
+.page-sub{font-size:9px;color:#aaa;letter-spacing:2px;text-transform:uppercase;margin-bottom:20px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ph-pill{background:#f0f2f5;color:#666;font-size:8px;font-weight:700;padding:3px 10px;border-radius:12px;letter-spacing:1px}
+
+/* LEGEND */
+.legend-bar{display:flex;align-items:center;gap:16px;padding:10px 18px;background:#fff;border:1px solid var(--border);border-radius:10px;margin-bottom:20px;flex-wrap:wrap;box-shadow:var(--shadow)}
+.legend-title{font-size:8px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#bbb}
+.leg-i{display:flex;align-items:center;gap:6px;font-size:9px;color:#555;font-weight:600}
+.leg-dot{width:10px;height:10px;border-radius:3px}
+
+/* KPI GRID */
+.kpi-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;gap:12px;margin-bottom:22px}
+.kpi-fr{border-radius:14px;padding:24px 26px;display:flex;flex-direction:column;justify-content:space-between;min-height:136px;position:relative;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.12)}
+.kpi-fr.c-green{background:var(--c-green);color:#fff}
+.kpi-fr.c-yellow{background:var(--c-yellow);color:#fff}
+.kpi-fr.c-orange{background:var(--c-orange);color:#fff}
+.kpi-fr.c-red{background:var(--c-red);color:#fff}
+.fr-main-label{font-size:8.5px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:.85;margin-bottom:6px}
+.fr-main-value{font-size:54px;font-weight:900;line-height:1;letter-spacing:-2px}
+.fr-main-sub{font-size:9px;opacity:.75;margin-top:4px;font-weight:500}
+.fr-main-badge{position:absolute;top:16px;right:16px;background:rgba(255,255,255,.22);border-radius:20px;padding:4px 11px;font-size:8px;font-weight:800;letter-spacing:1px}
+
+.kpi-s{background:#fff;border:1px solid var(--border);border-radius:14px;padding:18px 16px;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;min-height:136px;box-shadow:var(--shadow);transition:transform .2s,box-shadow .2s}
+.kpi-s:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,.1)}
+.kpi-s::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;border-radius:14px 14px 0 0}
+.kpi-s.s-green::before{background:var(--c-green)}.kpi-s.s-yellow::before{background:#eab308}
+.kpi-s.s-orange::before{background:var(--c-orange)}.kpi-s.s-red::before{background:var(--c-red)}
+.kpi-s.s-neu::before{background:#000}
+.kpi-s-icon{font-size:20px;margin-bottom:6px}
+.kpi-s-lbl{font-size:8px;color:#aaa;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;margin-bottom:3px}
+.kpi-s-val{font-size:30px;font-weight:900;line-height:1;color:#000}
+.kpi-s.s-green .kpi-s-val{color:var(--c-green)}.kpi-s.s-yellow .kpi-s-val{color:#ca8a04}
+.kpi-s.s-orange .kpi-s-val{color:var(--c-orange)}.kpi-s.s-red .kpi-s-val{color:var(--c-red)}
+.kpi-s-sub{font-size:9px;color:#bbb;margin-top:4px;font-weight:500}
+.kpi-s-dot{width:9px;height:9px;border-radius:50%;position:absolute;bottom:16px;right:16px}
+.kpi-s.s-green .kpi-s-dot{background:var(--c-green)}.kpi-s.s-yellow .kpi-s-dot{background:#eab308}
+.kpi-s.s-orange .kpi-s-dot{background:var(--c-orange)}.kpi-s.s-red .kpi-s-dot{background:var(--c-red)}
+.kpi-s.s-neu .kpi-s-dot{background:#000}
+
+/* CONTENT ROW */
+.content-row{display:flex;gap:14px;align-items:flex-start}
+
+/* PANEL */
+.panel{background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:var(--shadow)}
+.panel-head{padding:14px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #f0f0f0;flex-wrap:wrap}
+.panel-title{font-size:11px;font-weight:800;color:#000;letter-spacing:.5px;text-transform:uppercase}
+.panel-count{background:#f0f2f5;color:#666;font-size:9px;font-weight:700;padding:3px 10px;border-radius:10px}
+.search-inp{border:1px solid var(--border);border-radius:6px;padding:7px 12px;font-size:10px;font-family:inherit;outline:none;width:200px}
+.search-inp:focus{border-color:#000}
+.filter-select{border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:10px;font-family:inherit;outline:none;background:#fff;cursor:pointer}
+.exp-btn{border:1.5px solid #000;background:#fff;border-radius:6px;padding:7px 14px;font-size:9px;font-family:inherit;cursor:pointer;font-weight:700;letter-spacing:.5px;text-decoration:none;color:#000;transition:all .15s;white-space:nowrap}
+.exp-btn:hover{background:#000;color:#fff}
+
+/* TABLE */
+.spot-table{border-collapse:collapse;width:100%}
+.spot-table thead{background:#fafafa}
+.spot-table th{padding:11px 16px;text-align:left;font-size:8px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#aaa;border-bottom:1px solid #f0f0f0;white-space:nowrap}
+.spot-table td{padding:12px 16px;border-bottom:1px solid #f7f7f7;color:#333;font-size:11px;vertical-align:middle}
+.spot-table tbody tr:last-child td{border-bottom:none}
+.spot-table tbody tr:hover td{background:#fafafa;cursor:pointer}
+
+.fr-chip{display:inline-flex;align-items:center;justify-content:center;min-width:52px;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:800}
+.fr-chip.c-green{background:var(--bg-green);color:var(--c-green)}
+.fr-chip.c-yellow{background:var(--bg-yellow);color:var(--c-yellow)}
+.fr-chip.c-orange{background:var(--bg-orange);color:var(--c-orange)}
+.fr-chip.c-red{background:var(--bg-red);color:var(--c-red)}
+
+.estado-badge{font-size:8px;font-weight:700;padding:4px 9px;border-radius:10px;letter-spacing:.5px;white-space:nowrap}
+.e-venc{background:#dc2626;color:#fff}
+.e-prox{background:var(--bg-orange);color:var(--c-orange)}
+.e-bo{background:var(--bg-red);color:var(--c-red)}
+.e-pend{background:var(--bg-yellow);color:#854d0e}
+.f-venc{color:#dc2626;font-weight:700}
+.f-prox{color:#d97706;font-weight:600}
+.f-ok{color:#555}
+
+.detail-btn{background:transparent;border:1.5px solid var(--border);border-radius:6px;padding:5px 11px;font-size:9px;cursor:pointer;font-family:inherit;color:#888;font-weight:600;transition:all .15s;white-space:nowrap}
+.detail-btn:hover{background:#000;color:#fff;border-color:#000}
+
+/* RANKING */
+.rank-panel{width:300px;flex-shrink:0;background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:var(--shadow)}
+.rank-head{padding:14px 18px;border-bottom:1px solid #f0f0f0}
+.rank-title{font-size:10px;font-weight:800;color:#000;letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px}
+.rank-sub{font-size:9px;color:#bbb}
+.rank-item{padding:13px 18px;border-bottom:1px solid #f7f7f7;cursor:pointer;transition:background .15s}
+.rank-item:hover{background:#fafafa}
+.rank-item:last-child{border-bottom:none}
+.ri-top{display:flex;align-items:center;gap:10px;margin-bottom:7px}
+.ri-num{width:22px;height:22px;border-radius:50%;background:#f0f2f5;font-size:9px;font-weight:800;color:#666;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ri-name{font-size:12px;font-weight:700;color:#000;flex:1}
+.ri-fr{font-size:14px;font-weight:900}
+.ri-bar-wrap{background:#f0f2f5;border-radius:4px;height:5px;overflow:hidden}
+.ri-bar{height:100%;border-radius:4px;transition:width .5s}
+.ri-bottom{display:flex;justify-content:space-between;margin-top:6px;font-size:9px;color:#aaa}
+.ri-bottom strong{color:#555}
+
+/* MODAL */
+.spot-modal{border:none;border-radius:14px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.16)}
+.spot-modal-header{background:#000;color:#fff;padding:20px 24px;display:flex;align-items:center;gap:20px}
+.modal-header-info{flex:1}
+.modal-client{font-size:18px;font-weight:900;color:#fff;margin:0}
+.modal-oc-info{font-size:10px;color:#888;margin-top:3px;margin:0}
+.modal-fr-label{font-size:8px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;text-align:right}
+.modal-fr-value{font-size:32px;font-weight:900;text-align:right}
+.modal-fr-value.c-green{color:#4ade80}.modal-fr-value.c-yellow{color:#fde047}
+.modal-fr-value.c-orange{color:#fb923c}.modal-fr-value.c-red{color:#f87171}
+.modal-close-btn{background:rgba(255,255,255,.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:background .15s;flex-shrink:0}
+.modal-close-btn:hover{background:rgba(255,255,255,.3)}
+.spot-modal-body{padding:20px 24px}
+.modal-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+.mk{background:#f5f5f5;border-radius:10px;padding:13px 14px;text-align:center}
+.mk-lbl{font-size:8px;color:#aaa;text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:5px}
+.mk-val{font-size:22px;font-weight:900;color:#000}
+.mk-val.ok{color:var(--c-green)}.mk-val.warn{color:var(--c-orange)}.mk-val.crit{color:var(--c-red)}
+.modal-sec-label{font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#aaa;margin:18px 0 10px}
+.modal-table{width:100%;border-collapse:collapse;font-size:11px}
+.modal-table th{padding:9px 12px;text-align:left;font-size:8px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#aaa;border-bottom:1px solid #eee;white-space:nowrap}
+.modal-table td{padding:11px 12px;border-bottom:1px solid #f7f7f7;color:#333}
+.modal-table tr:last-child td{border-bottom:none}
+.pct-bar{height:4px;background:#f0f0f0;border-radius:4px;overflow:hidden;margin-top:4px}
+.pct-fill{height:100%;border-radius:4px}
+.motivo-ok{font-size:10px;color:var(--c-green);font-weight:600}
+.motivo-bad{font-size:10px;color:var(--c-red);font-weight:600}
+.motivo-warn{font-size:10px;color:var(--c-orange);font-weight:600}
+.comentario-box{background:#f9f9f9;border:1px solid #eee;border-left:3px solid #000;border-radius:0 6px 6px 0;padding:10px 14px;font-size:11px;color:#555;line-height:1.6;margin-top:4px}
+
+/* DEMO BANNER */
+.demo-banner{background:#000;color:#fff;text-align:center;padding:8px;font-size:10px;letter-spacing:1px;font-weight:600}
+.demo-banner span{opacity:.6}
+
+/* CLIENTES GRID */
+.clientes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.cliente-card{background:#fff;border:1px solid #e4e4e4;border-radius:14px;padding:18px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.08);transition:all .2s}
+.cliente-card:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,.1)}
+
+@media(max-width:1200px){.kpi-grid{grid-template-columns:1fr 1fr 1fr}.kpi-fr{grid-column:span 2}.content-row{flex-direction:column}.rank-panel{width:100%}}
+@media(max-width:768px){.spot-sidebar{display:none}.spot-main{padding:16px}.kpi-grid{grid-template-columns:1fr 1fr}.kpi-fr{grid-column:span 2}.fr-main-value{font-size:40px}}
+</style>
+</head>
+<body>
+
+<div class="demo-banner">SPOT ESSENCE — Gestión Comercial &nbsp;&middot;&nbsp; <span>Vista previa con datos de demostración &middot; En producción se conectará a tu Excel en OneDrive</span></div>
+
+<!-- NAV -->
+<nav class="spot-nav">
+  <img class="nav-logo" id="navLogo" src="" alt="SPOT ESSENCE">
+  <div class="nav-sep"></div>
+  <span class="nav-module">Gestión Comercial</span>
+  <div class="nav-right">
+    <span class="dot-live"></span>
+    <span class="nav-time">Actualizado: hoy 12:33 &middot; Próximo refresco en 48 min</span>
+    <button class="btn-refresh-nav" onclick="alert('En producción: recargará el Excel desde OneDrive')">&#8635; Actualizar</button>
+    <span class="nav-mes">JUNIO 2026</span>
+  </div>
+</nav>
+
+<div class="spot-layout">
+
+<!-- SIDEBAR -->
+<aside class="spot-sidebar">
+  <div class="sb-group">
+    <div class="sb-label">Comercial</div>
+    <a href="#" class="sb-item active" id="navDashboard" onclick="showSection('dashboard',this);return false"><span class="sb-icon">📊</span> Dashboard</a>
+    <a href="#" class="sb-item" id="navClientes" onclick="showSection('clientes',this);return false"><span class="sb-icon">🏢</span> Por Cliente <span class="sb-badge red">5</span></a>
+    <a href="#" class="sb-item" id="navOcs" onclick="showSection('ocs',this);return false"><span class="sb-icon">📋</span> OCs Pendientes <span class="sb-badge amber">6</span></a>
+  </div>
+  <div class="sb-group">
+    <div class="sb-label">Análisis</div>
+    <a href="#" class="sb-item" id="navFillrate" onclick="showSection('fillrate',this);return false"><span class="sb-icon">📈</span> Fill Rate</a>
+    <a href="#" class="sb-item" id="navBackorder" onclick="showSection('backorder',this);return false"><span class="sb-icon">⚠️</span> Back Order</a>
+  </div>
+  <div class="sb-group">
+    <div class="sb-label">Exportar</div>
+    <a href="#" class="sb-item" onclick="alert('Descarga disponible en producción Railway');return false"><span class="sb-icon">📥</span> CSV Pendientes</a>
+  </div>
+  <div class="sidebar-footer">
+    <div class="sf-label">Último refresco</div>
+    <div class="sf-time">24-jun-2026 12:33</div>
+    <div class="sf-label" style="margin-top:6px">Próximo en</div>
+    <div class="sf-cd" id="countdown">59:47</div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="spot-main">
+
+<!-- DASHBOARD -->
+<div id="sec-dashboard">
+  <h1 class="page-title">Tablero de Servicio Comercial</h1>
+  <p class="page-sub">Referencia: Fecha de Despacho &middot; Junio 2026 &middot; <span class="ph-pill">KAM &middot; GERENCIA COMERCIAL &middot; DIRECCIÓN</span></p>
+
+  <div class="legend-bar">
+    <span class="legend-title">Semáforo FR</span>
+    <div class="leg-i"><div class="leg-dot" style="background:#16a34a"></div>&ge;98% Óptimo</div>
+    <div class="leg-i"><div class="leg-dot" style="background:#eab308"></div>95&ndash;97.9% Atención</div>
+    <div class="leg-i"><div class="leg-dot" style="background:#ea580c"></div>90&ndash;94.9% Riesgo</div>
+    <div class="leg-i"><div class="leg-dot" style="background:#dc2626"></div>&lt;90% Crítico</div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-fr c-orange">
+      <div>
+        <div class="fr-main-label">Fill Rate — Mes Actual</div>
+        <div class="fr-main-value">92.4%</div>
+        <div class="fr-main-sub">37.875 / 40.215 UN &middot; Junio 2026</div>
+      </div>
+      <span class="fr-main-badge">⚠️ RIESGO</span>
+    </div>
+    <div class="kpi-s s-yellow">
+      <div class="kpi-s-icon">📋</div>
+      <div><div class="kpi-s-lbl">OCs Pendientes</div><div class="kpi-s-val" style="color:#d97706">6</div><div class="kpi-s-sub">con saldo pendiente</div></div>
+      <div class="kpi-s-dot" style="background:#eab308"></div>
+    </div>
+    <div class="kpi-s s-orange">
+      <div class="kpi-s-icon">🎯</div>
+      <div><div class="kpi-s-lbl">OCs con Riesgo</div><div class="kpi-s-val" style="color:#ea580c">4</div><div class="kpi-s-sub">FR &lt; 100%</div></div>
+      <div class="kpi-s-dot" style="background:#ea580c"></div>
+    </div>
+    <div class="kpi-s s-yellow">
+      <div class="kpi-s-icon">🏢</div>
+      <div><div class="kpi-s-lbl">Clientes con Pend.</div><div class="kpi-s-val" style="color:#ca8a04">5</div><div class="kpi-s-sub">con al menos 1 OC</div></div>
+      <div class="kpi-s-dot" style="background:#eab308"></div>
+    </div>
+    <div class="kpi-s s-neu">
+      <div class="kpi-s-icon">📦</div>
+      <div><div class="kpi-s-lbl">Unidades Pendientes</div><div class="kpi-s-val">2.340</div><div class="kpi-s-sub">sin despachar</div></div>
+      <div class="kpi-s-dot" style="background:#000"></div>
+    </div>
+    <div class="kpi-s s-red">
+      <div class="kpi-s-icon">⛔</div>
+      <div><div class="kpi-s-lbl">Back Order Mes</div><div class="kpi-s-val" style="color:#dc2626">624</div><div class="kpi-s-sub">unidades &middot; junio</div></div>
+      <div class="kpi-s-dot" style="background:#dc2626"></div>
+    </div>
+  </div>
+
+  <div class="content-row">
+    <div class="panel" style="flex:1;min-width:0">
+      <div class="panel-head">
+        <span class="panel-title">OCs Pendientes</span>
+        <span class="panel-count" id="tCount">6 órdenes</span>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="text" id="search" class="search-inp" placeholder="🔍  Buscar cliente u OC..." oninput="filterTable()">
+          <select id="filtroEstado" class="filter-select" onchange="filterTable()">
+            <option value="">Todos</option>
+            <option value="VENCIDA">Vencidas</option>
+            <option value="BACK ORDER">Back Order</option>
+            <option value="PENDIENTE">Pendiente</option>
+          </select>
+          <button class="exp-btn" onclick="alert('Disponible en producción')">&#8595; CSV</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="spot-table" id="ocTable">
+          <thead><tr>
+            <th>Cliente</th><th>OC</th><th>F. Despacho</th><th>Fill Rate</th>
+            <th>Estado</th><th>UN Pendientes</th><th>Comentario</th><th></th>
+          </tr></thead>
+          <tbody id="ocBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="rank-panel">
+      <div class="rank-head">
+        <div class="rank-title">Top Clientes en Riesgo</div>
+        <div class="rank-sub">Menor Fill Rate &middot; Mes Actual</div>
+      </div>
+      <div id="rankBody"></div>
+    </div>
+  </div>
+</div>
+
+<!-- FILL RATE -->
+<div id="sec-fillrate" style="display:none">
+  <h1 class="page-title">Análisis Fill Rate</h1>
+  <p class="page-sub">Por cliente &middot; Mes actual</p>
+  <div class="panel" style="padding:24px"><canvas id="frChart" height="300"></canvas></div>
+</div>
+
+<!-- BACK ORDER -->
+<div id="sec-backorder" style="display:none">
+  <h1 class="page-title">Back Order</h1>
+  <p class="page-sub">Unidades pendientes por cliente</p>
+  <div class="panel" style="padding:24px"><canvas id="boChart" height="280"></canvas></div>
+</div>
+
+<!-- CLIENTES -->
+<div id="sec-clientes" style="display:none">
+  <h1 class="page-title">Vista por Cliente</h1>
+  <p class="page-sub">Resumen de servicio por cuenta</p>
+  <div class="clientes-grid" id="clientesGrid"></div>
+</div>
+
+<!-- OCS -->
+<div id="sec-ocs" style="display:none">
+  <h1 class="page-title">Todas las OCs Pendientes</h1>
+  <p class="page-sub">Vista completa &middot; Solo pendientes</p>
+  <div class="panel">
+    <div class="panel-head"><span class="panel-title">OCs Pendientes</span><span class="panel-count">6 órdenes</span><button class="exp-btn" style="margin-left:auto" onclick="alert('Disponible en producción')">&#8595; CSV</button></div>
+    <div style="overflow-x:auto"><table class="spot-table"><thead><tr><th>Cliente</th><th>OC</th><th>F. Despacho</th><th>Fill Rate</th><th>Estado</th><th>UN Pendientes</th><th>Comentario</th><th></th></tr></thead><tbody id="ocBody2"></tbody></table></div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<!-- MODAL -->
+<div class="modal fade" id="ocModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content spot-modal">
+      <div class="spot-modal-header">
+        <div class="modal-header-info">
+          <p class="modal-client" id="mClient">—</p>
+          <p class="modal-oc-info" id="mInfo">—</p>
+        </div>
+        <div>
+          <div class="modal-fr-label">Fill Rate OC</div>
+          <div class="modal-fr-value" id="mFr">—</div>
+        </div>
+        <button class="modal-close-btn" data-bs-dismiss="modal">&#x2715;</button>
+      </div>
+      <div class="spot-modal-body" id="mBody"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+// ─── LOGO ────────────────────────────────────────────────────────
+// Logo se carga desde archivo externo para no inflar este HTML
+fetch('static/img/logo.png').then(r=>{
+  if(r.ok) document.getElementById('navLogo').src='static/img/logo.png';
+}).catch(()=>{});
+
+// ─── DATOS DEMO ──────────────────────────────────────────────────
+const ORDERS = [
+  {oc:"6508802200",cliente:"Walmart Chile",fecha:"20-jun-2026",fClase:"f-venc",fr:72.0,frChip:"c-red",estado:"VENCIDA",eClase:"e-venc",bo:336,sol:1200,comentario:"Sin stock aromas cítricos",
+   skus:[
+     {prod:"Aromatizador Auto Cítrico 8ml",ean:"745853441290",sol:500,asig:0,bo:500,fr:0,frC:"c-red",stock:0,motivo:"Sin stock"},
+     {prod:"Home Spray Lavanda 250ml",ean:"745853440112",sol:400,asig:264,bo:136,fr:66,frC:"c-orange",stock:12,motivo:"Stock insuficiente"},
+     {prod:"Difusor Varillas 150ml Berries",ean:"745853438753",sol:300,asig:300,bo:0,fr:100,frC:"c-green",stock:45,motivo:""}
+   ]},
+  {oc:"6508799341",cliente:"Sodimac",fecha:"26-jun-2026",fClase:"f-prox",fr:79.0,frChip:"c-red",estado:"BACK ORDER",eClase:"e-bo",bo:168,sol:800,comentario:"Asignación parcial por quiebre",
+   skus:[
+     {prod:"Difusor Auto Menta 5ml",ean:"745853440220",sol:400,asig:200,bo:200,fr:50,frC:"c-red",stock:0,motivo:"Sin stock"},
+     {prod:"Home Spray Coco 250ml",ean:"745853440330",sol:400,asig:432,bo:0,fr:100,frC:"c-green",stock:80,motivo:""}
+   ]},
+  {oc:"6508801554",cliente:"Ripley",fecha:"27-jun-2026",fClase:"f-prox",fr:88.0,frChip:"c-orange",estado:"PENDIENTE",eClase:"e-pend",bo:72,sol:600,comentario:"Faltan varillas 200ml",
+   skus:[
+     {prod:"Difusor Varillas 200ml Flores",ean:"745853441100",sol:200,asig:128,bo:72,fr:64,frC:"c-red",stock:5,motivo:"Stock insuficiente"},
+     {prod:"Aromatizador Auto Lavanda",ean:"745853441200",sol:400,asig:400,bo:0,fr:100,frC:"c-green",stock:120,motivo:""}
+   ]},
+  {oc:"6508800112",cliente:"Paris",fecha:"28-jun-2026",fClase:"f-ok",fr:91.0,frChip:"c-orange",estado:"PENDIENTE",eClase:"e-pend",bo:36,sol:400,comentario:"",
+   skus:[
+     {prod:"Home Spray Vainilla 200ml",ean:"745853440440",sol:400,asig:364,bo:36,fr:91,frC:"c-orange",stock:8,motivo:"Producción en proceso"}
+   ]},
+  {oc:"6508802118",cliente:"Easy",fecha:"30-jun-2026",fClase:"f-ok",fr:95.0,frChip:"c-yellow",estado:"PENDIENTE",eClase:"e-pend",bo:12,sol:240,comentario:"Falta home spray ámbar",
+   skus:[
+     {prod:"Home Spray Ámbar 250ml",ean:"745853440550",sol:120,asig:108,bo:12,fr:90,frC:"c-orange",stock:3,motivo:"Stock insuficiente"},
+     {prod:"Difusor Varillas 150ml Cítrico",ean:"745853440660",sol:120,asig:120,bo:0,fr:100,frC:"c-green",stock:30,motivo:""}
+   ]},
+  {oc:"6508803001",cliente:"Falabella",fecha:"30-jun-2026",fClase:"f-ok",fr:98.0,frChip:"c-green",estado:"PENDIENTE",eClase:"e-pend",bo:5,sol:250,comentario:"Casi completo",
+   skus:[
+     {prod:"Kit Aromatizador Premium",ean:"745853440770",sol:250,asig:245,bo:5,fr:98,frC:"c-green",stock:12,motivo:"Stock insuficiente"}
+   ]},
+];
+
+const RANKING = [
+  {cliente:"Walmart Chile",fr:72,bo:336,nOcs:2,sem:"red"},
+  {cliente:"Sodimac",      fr:79,bo:168,nOcs:1,sem:"red"},
+  {cliente:"Ripley",       fr:88,bo:72, nOcs:1,sem:"orange"},
+  {cliente:"Paris",        fr:91,bo:36, nOcs:1,sem:"orange"},
+  {cliente:"Easy",         fr:95,bo:12, nOcs:1,sem:"yellow"},
+];
+
+const SEM={green:"#16a34a",yellow:"#ca8a04",orange:"#ea580c",red:"#dc2626"};
+
+// ─── TABLA ───────────────────────────────────────────────────────
+let filtered=[...ORDERS];
+
+function fmtOC(r){
+  return `<tr onclick="openModal('${r.oc}')">
+    <td><strong>${r.cliente}</strong></td>
+    <td style="font-family:monospace;font-size:10px;color:#888">${r.oc}</td>
+    <td class="${r.fClase}">${r.fecha}${r.fClase==='f-venc'?' ⚠️':r.fClase==='f-prox'?' 🟡':''}</td>
+    <td><span class="fr-chip ${r.frChip}">${r.fr.toFixed(1)}%</span></td>
+    <td><span class="estado-badge ${r.eClase}">${r.estado}</span></td>
+    <td style="${r.bo>0&&r.fr<90?'color:#dc2626;font-weight:700':'color:#555'}">${r.bo.toLocaleString('es-CL')}</td>
+    <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#999;font-size:10px">${r.comentario||'—'}</td>
+    <td><button class="detail-btn" onclick="event.stopPropagation();openModal('${r.oc}')">Ver →</button></td>
+  </tr>`;
+}
+
+function renderTable(orders,bodyId,countId){
+  const b=document.getElementById(bodyId);
+  const c=document.getElementById(countId);
+  if(c) c.textContent=`${orders.length} órdenes`;
+  if(!b) return;
+  b.innerHTML=orders.length?orders.map(fmtOC).join(''):`<tr><td colspan="8" style="text-align:center;padding:40px;color:#ccc"><div style="font-size:28px">✅</div>Sin órdenes pendientes</td></tr>`;
+}
+
+function filterTable(){
+  const q=(document.getElementById("search")?.value||"").toLowerCase();
+  const e=(document.getElementById("filtroEstado")?.value||"").toUpperCase();
+  filtered=ORDERS.filter(r=>
+    (!q||(r.cliente.toLowerCase().includes(q)||r.oc.includes(q)||r.comentario.toLowerCase().includes(q)))&&
+    (!e||r.estado.toUpperCase().includes(e))
+  );
+  renderTable(filtered,"ocBody","tCount");
+}
+
+// ─── RANKING ─────────────────────────────────────────────────────
+function renderRanking(){
+  document.getElementById("rankBody").innerHTML=RANKING.map((c,i)=>`
+    <div class="rank-item" onclick="document.getElementById('search').value='${c.cliente}';filterTable();showSection('dashboard',document.getElementById('navDashboard'))">
+      <div class="ri-top">
+        <div class="ri-num">${i+1}</div>
+        <div class="ri-name">${c.cliente}</div>
+        <div class="ri-fr" style="color:${SEM[c.sem]}">${c.fr.toFixed(1)}%</div>
+      </div>
+      <div class="ri-bar-wrap"><div class="ri-bar" style="width:${c.fr}%;background:${SEM[c.sem]}"></div></div>
+      <div class="ri-bottom"><span><strong>${c.bo.toLocaleString('es-CL')}</strong> UN pend.</span><span><strong>${c.nOcs}</strong> OC${c.nOcs!==1?'s':''}</span></div>
+    </div>`).join("");
+}
+
+// ─── MODAL ───────────────────────────────────────────────────────
+function openModal(ocId){
+  const d=ORDERS.find(o=>o.oc===ocId);
+  if(!d) return;
+  const modal=new bootstrap.Modal(document.getElementById("ocModal"));
+  document.getElementById("mClient").textContent=d.cliente;
+  document.getElementById("mInfo").innerHTML=`OC ${d.oc} &middot; F. Despacho: ${d.fecha}${d.fClase==='f-venc'?' &middot; <span style="color:#f87171;font-weight:700">VENCIDA</span>':""}`;
+  const frEl=document.getElementById("mFr");
+  frEl.textContent=`${d.fr.toFixed(1)}%`;
+  frEl.className=`modal-fr-value ${d.frChip}`;
+  const boTotal=d.skus.reduce((s,r)=>s+r.bo,0);
+  document.getElementById("mBody").innerHTML=`
+    <div class="modal-sec-label">Resumen de la OC</div>
+    <div class="modal-kpis">
+      <div class="mk"><div class="mk-lbl">UN Solicitadas</div><div class="mk-val">${d.sol.toLocaleString('es-CL')}</div></div>
+      <div class="mk"><div class="mk-lbl">UN Asignadas</div><div class="mk-val ok">${(d.sol-boTotal).toLocaleString('es-CL')}</div></div>
+      <div class="mk"><div class="mk-lbl">UN Pendientes</div><div class="mk-val ${boTotal>0?'crit':'ok'}">${boTotal.toLocaleString('es-CL')}</div></div>
+      <div class="mk"><div class="mk-lbl">Fill Rate</div><div class="mk-val ${d.fr<90?'crit':d.fr<95?'warn':'ok'}">${d.fr.toFixed(1)}%</div></div>
+    </div>
+    <div class="modal-sec-label">Detalle por Producto</div>
+    <div style="overflow-x:auto">
+    <table class="modal-table">
+      <thead><tr><th>Producto</th><th>EAN</th><th>Solic.</th><th>Asign.</th><th>Pendiente</th><th>FR SKU</th><th>Stock</th><th>Motivo</th></tr></thead>
+      <tbody>${d.skus.map(s=>{
+        const fillColor=s.fr>=98?"#16a34a":s.fr>=90?"#ea580c":"#dc2626";
+        const motivo=s.bo===0?`<span class="motivo-ok">✅ Completo</span>`:s.motivo==="Sin stock"?`<span class="motivo-bad">❌ Sin stock</span>`:`<span class="motivo-warn">⚠️ ${s.motivo}</span>`;
+        return `<tr>
+          <td><div style="font-size:10px;font-weight:600;color:#000">${s.prod}</div></td>
+          <td style="font-family:monospace;font-size:9px;color:#aaa">${s.ean}</td>
+          <td>${s.sol}</td><td>${s.asig}</td>
+          <td style="${s.bo>0?'color:#dc2626;font-weight:700':'color:#aaa'}">${s.bo}</td>
+          <td><span class="fr-chip ${s.frC}" style="font-size:9px;padding:3px 8px">${s.fr.toFixed(0)}%</span>
+              <div class="pct-bar"><div class="pct-fill" style="width:${s.fr}%;background:${fillColor}"></div></div></td>
+          <td style="${s.stock===0?'color:#dc2626;font-weight:700':'color:#555'}">${s.stock}</td>
+          <td>${motivo}</td>
+        </tr>`;
+      }).join("")}</tbody>
+    </table></div>
+    ${d.comentario?`<div class="modal-sec-label">Comentarios</div><div class="comentario-box">${d.comentario}</div>`:""}
+  `;
+  modal.show();
+}
+
+// ─── SECCIONES ───────────────────────────────────────────────────
+const SECS=["dashboard","fillrate","backorder","clientes","ocs"];
+let frChart=null,boChart=null;
+
+function showSection(name,el){
+  SECS.forEach(s=>{const e=document.getElementById(`sec-${s}`);if(e) e.style.display=s===name?"":"none";});
+  document.querySelectorAll(".sb-item").forEach(i=>i.classList.remove("active"));
+  if(el) el.classList.add("active");
+  if(name==="fillrate") initFrChart();
+  if(name==="backorder") initBoChart();
+  if(name==="clientes") initClientesGrid();
+  if(name==="ocs") renderTable(ORDERS,"ocBody2","tCount2");
+}
+
+function initFrChart(){
+  const ctx=document.getElementById("frChart")?.getContext("2d");
+  if(!ctx) return;
+  if(frChart) frChart.destroy();
+  const data=[...RANKING].reverse();
+  frChart=new Chart(ctx,{type:"bar",data:{
+    labels:data.map(d=>d.cliente),
+    datasets:[{label:"Fill Rate %",data:data.map(d=>d.fr),backgroundColor:data.map(d=>SEM[d.sem]),borderRadius:6,borderSkipped:false}]
+  },options:{indexAxis:"y",responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:v=>`${v.raw.toFixed(1)}%`}}},
+    scales:{x:{min:60,max:100,grid:{color:"#f0f0f0"},ticks:{font:{family:"Montserrat",size:10},callback:v=>`${v}%`}},
+            y:{grid:{display:false},ticks:{font:{family:"Montserrat",size:11,weight:"600"}}}}}});
+}
+
+function initBoChart(){
+  const ctx=document.getElementById("boChart")?.getContext("2d");
+  if(!ctx) return;
+  if(boChart) boChart.destroy();
+  boChart=new Chart(ctx,{type:"bar",data:{
+    labels:RANKING.map(d=>d.cliente),
+    datasets:[{label:"UN Back Order",data:RANKING.map(d=>d.bo),backgroundColor:RANKING.map(d=>SEM[d.sem]),borderRadius:6,borderSkipped:false}]
+  },options:{responsive:true,plugins:{legend:{display:false}},
+    scales:{y:{grid:{color:"#f0f0f0"},ticks:{font:{family:"Montserrat",size:10}}},
+            x:{grid:{display:false},ticks:{font:{family:"Montserrat",size:11,weight:"600"}}}}}});
+}
+
+function initClientesGrid(){
+  const grid=document.getElementById("clientesGrid");
+  if(!grid) return;
+  grid.innerHTML=RANKING.map(c=>`
+    <div class="cliente-card" style="border-top:4px solid ${SEM[c.sem]}"
+         onclick="document.getElementById('search').value='${c.cliente}';filterTable();showSection('dashboard',document.getElementById('navDashboard'))">
+      <div style="font-size:14px;font-weight:800;color:#000;margin-bottom:12px">${c.cliente}</div>
+      <div style="font-size:28px;font-weight:900;color:${SEM[c.sem]}">${c.fr.toFixed(1)}%</div>
+      <div style="font-size:9px;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Fill Rate mes actual</div>
+      <div style="background:#f0f2f5;border-radius:4px;height:6px;overflow:hidden;margin-bottom:8px">
+        <div style="width:${c.fr}%;background:${SEM[c.sem]};height:100%;border-radius:4px"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:#aaa">
+        <span><strong style="color:#333">${c.bo.toLocaleString('es-CL')}</strong> UN pend.</span>
+        <span><strong style="color:#333">${c.nOcs}</strong> OC${c.nOcs!==1?'s':''}</span>
+      </div>
+    </div>`).join("");
+}
+
+// ─── COUNTDOWN ───────────────────────────────────────────────────
+let cd=59*60+47;
+setInterval(()=>{
+  if(--cd<0) cd=3600;
+  const el=document.getElementById("countdown");
+  if(el) el.textContent=`${Math.floor(cd/60)}:${String(cd%60).padStart(2,"0")}`;
+},1000);
+
+// ─── INIT ────────────────────────────────────────────────────────
+renderTable(ORDERS,"ocBody","tCount");
+renderRanking();
+</script>
+</body>
+</html>

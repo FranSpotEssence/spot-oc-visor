@@ -1,0 +1,11 @@
+flask==3.0.3
+flask-cors==4.0.1
+pandas==2.2.2
+openpyxl==3.1.2
+msal==1.29.0
+requests==2.32.3
+apscheduler==3.10.4
+python-dotenv==1.0.1
+gunicorn==22.0.0
+numpy==1.26.4
+anthropic==0.40.0
