@@ -1109,7 +1109,12 @@ def _load_tracking_pt() -> dict:
     if _tracking_pt_cache is not None:
         return _tracking_pt_cache
 
-    df = pd.read_excel(_TRACKING_PT_FILE, sheet_name="Tracking PT", header=6)
+    import shutil, tempfile
+    with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
+        shutil.copy2(_TRACKING_PT_FILE, tmp.name)
+        tmp_path = tmp.name
+    df = pd.read_excel(tmp_path, sheet_name="Tracking PT", header=6)
+    os.remove(tmp_path)
 
     def _clean(v):
         if v is None: return ""
@@ -1125,36 +1130,59 @@ def _load_tracking_pt() -> dict:
             return None if pd.isna(f) else (round(f * 100, 1) if pct else f)
         except: return None
 
+    # Columnas de fecha disponibles
+    today     = pd.Timestamp(date.today())
+    date_cols = [c for c in df.columns if hasattr(c, "year")]
+
+    # Mes actual → forecast
+    fcst_col   = next((c for c in date_cols if c.year == today.year and c.month == today.month), None)
+    fcst_label = today.strftime("%b %Y").upper() if fcst_col is not None else ""
+
+    # Últimos 3 meses cerrados (anteriores al mes actual)
+    past_cols = [c for c in date_cols if (c.year, c.month) < (today.year, today.month)]
+    last3_cols = past_cols[-3:] if len(past_cols) >= 3 else past_cols
+    last3_labels = [c.strftime("%b %Y").upper() for c in last3_cols]
+
     rows = []
     for _, r in df.iterrows():
         ean = _clean(r.get("EAN",""))
         if not ean: continue
-        # normalise EAN: remove .0 suffix
         if ean.endswith(".0"): ean = ean[:-2]
+
+        fcst_mes = _num(r[fcst_col]) if fcst_col is not None else None
+        meses_ant = [_num(r[c]) for c in last3_cols]
 
         rows.append({
             "ean":          ean,
             "producto":     _clean(r.get("PRODUCTO","")),
             "marca":        _clean(r.get("Marca","")),
-            "categoria":    _clean(r.iloc[3]),   # CATEGORÍA (col index 3, encoding issue)
-            "aroma":        _clean(r.iloc[4]),   # AROMA
+            "categoria":    _clean(r.iloc[3]),
+            "aroma":        _clean(r.iloc[4]),
             "abc":          _clean(r.get("ABC","")),
+            "meses_ant":    meses_ant,
             "venta_mtd":    _num(r.get("VENTA MTD")),
             "cumplimiento": _num(r.get("CUMPLIMIENTO"), pct=True),
             "fa":           _num(r.get("FORECAST ACCURACY"), pct=True),
             "stock":        _num(r.get("STOCK")),
             "doh":          _num(r.get("DOH")),
-            "doh_prod":     _num(r.get("DOH + PROD")),
-            "gap":          _num(r.get("GAP")),
-            "oc_pendiente": _num(r.get("OC CLIENTE PENDIENTE")),
-            "comentario":   _clean(r.get("COMENTARIO","")),
+            "fcst_mes":     fcst_mes,
         })
+
+    # FA A+B MTD: sum(venta) / sum(fcst mes) para productos A y B
+    ab_rows  = [r for r in rows if r["abc"] in ("A", "B") and r["fcst_mes"] and r["fcst_mes"] > 0]
+    fcst_sum = sum(r["fcst_mes"]  for r in ab_rows)
+    venta_sum= sum(r["venta_mtd"] for r in ab_rows if r["venta_mtd"] is not None)
+    fa_ab_mtd = round(venta_sum / fcst_sum * 100, 1) if fcst_sum else None
 
     categorias = sorted({r["categoria"] for r in rows if r["categoria"]})
     aromas     = sorted({r["aroma"]     for r in rows if r["aroma"]})
     abcs       = sorted({r["abc"]       for r in rows if r["abc"]})
 
-    _tracking_pt_cache = {"rows": rows, "categorias": categorias, "aromas": aromas, "abcs": abcs}
+    _tracking_pt_cache = {
+        "rows": rows, "categorias": categorias, "aromas": aromas, "abcs": abcs,
+        "fa_ab_mtd": fa_ab_mtd, "fcst_label": fcst_label,
+        "last3_labels": last3_labels,
+    }
     return _tracking_pt_cache
 
 

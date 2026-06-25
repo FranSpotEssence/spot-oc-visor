@@ -175,6 +175,21 @@
         </div>
 
       </div><!-- /content-row -->
+
+      <!-- Árbol de Pérdida MTD — OCs Cerradas -->
+      <div class="panel" style="margin-top:16px">
+        <div class="panel-head">
+          <span class="panel-title">Árbol de Pérdida — OCs Cerradas MTD</span>
+          <span style="font-size:11px;color:#888;font-weight:500" id="dashLossTreeSub">según filtros aplicados</span>
+        </div>
+        <div style="display:flex;gap:32px;align-items:flex-start;flex-wrap:wrap;padding:18px">
+          <div style="width:260px;flex-shrink:0">
+            <canvas id="dashLossTreeChart"></canvas>
+          </div>
+          <div style="flex:1;min-width:280px" id="dashLossTreeTable"></div>
+        </div>
+      </div>
+
     </section>
 
     <!-- ══ SECCIÓN: FILL RATE ══ -->
@@ -673,6 +688,7 @@
         <div class="kpi-skeleton"></div>
         <div class="kpi-skeleton"></div>
         <div class="kpi-skeleton"></div>
+        <div class="kpi-skeleton"></div>
       </div>
 
       <!-- Panel tabla con filtros -->
@@ -704,14 +720,14 @@
                 <th onclick="sortTPT('producto')" style="cursor:pointer">Producto ↕</th>
                 <th onclick="sortTPT('marca')" style="cursor:pointer">Marca ↕</th>
                 <th onclick="sortTPT('abc')" style="cursor:pointer;text-align:center">ABC ↕</th>
+                <th id="tptMes1Hdr" style="text-align:right;color:#aaa">—</th>
+                <th id="tptMes2Hdr" style="text-align:right;color:#aaa">—</th>
+                <th id="tptMes3Hdr" style="text-align:right;color:#aaa">—</th>
                 <th onclick="sortTPT('venta_mtd')" style="cursor:pointer;text-align:right">Venta MTD ↕</th>
                 <th onclick="sortTPT('cumplimiento')" style="cursor:pointer;text-align:center">Cumpl. ↕</th>
                 <th onclick="sortTPT('fa')" style="cursor:pointer;text-align:center">Forecast Acc. ↕</th>
                 <th onclick="sortTPT('stock')" style="cursor:pointer;text-align:right">Stock ↕</th>
                 <th onclick="sortTPT('doh')" style="cursor:pointer;text-align:right">DOH ↕</th>
-                <th onclick="sortTPT('doh_prod')" style="cursor:pointer;text-align:right">DOH+Prod ↕</th>
-                <th style="text-align:center">OC Pend.</th>
-                <th>Comentario</th>
               </tr>
             </thead>
             <tbody id="tptBody">

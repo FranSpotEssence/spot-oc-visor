@@ -253,6 +253,8 @@ function renderTable(orders) {
     tbody2.innerHTML = tbody.innerHTML;
     setEl("tableCount2", `${orders.length} órdenes`);
   }
+
+  _renderDashLossTree(orders);
 }
 
 function populateEstadoFilter(orders) {
@@ -304,6 +306,7 @@ function filterTable() {
   }
 
   renderTable(filtered);
+  _renderDashLossTree(filtered);
 }
 
 function clearFilters() {
@@ -312,7 +315,153 @@ function clearFilters() {
   if (search) search.value = "";
   if (estado) estado.value = "";
   document.getElementById("btnClearFilters").style.display = "none";
-  renderTable(sortWeekOrders(STATE.orders));
+  const orders = sortWeekOrders(STATE.orders);
+  renderTable(orders);
+  _renderDashLossTree(orders);
+}
+
+// ── ÁRBOL DE PÉRDIDA DASHBOARD (OCs Cerradas MTD) ────────────
+const _DASH_LOSS = { chart: null };
+
+function _renderDashLossTree(visibleOrders) {
+  const ctx = document.getElementById("dashLossTreeChart")?.getContext("2d");
+  const tbl = document.getElementById("dashLossTreeTable");
+  if (!ctx) return;
+
+  // Filtrar OCs cerradas del mes actual de las visibles en tabla
+  const now = new Date();
+  const curY = now.getFullYear(), curM = now.getMonth();
+  const cerradasMTD = visibleOrders.filter(r => {
+    if ((r.estado || "").toUpperCase() !== "CERRADA") return false;
+    const d = parseDispatchDate(r.fecha_despacho);
+    return d && d.getFullYear() === curY && d.getMonth() === curM;
+  });
+
+  // Actualizar subtítulo
+  const sub = document.getElementById("dashLossTreeSub");
+  if (sub) {
+    const mes = now.toLocaleString("es-CL", { month: "long", year: "numeric" });
+    sub.textContent = cerradasMTD.length
+      ? `${cerradasMTD.length} OC${cerradasMTD.length !== 1 ? "s" : ""} cerradas · ${mes}`
+      : `sin OCs cerradas MTD`;
+  }
+
+  // Cruzar con BO detail para obtener SKUs con categoria_arbol
+  const ocIds = new Set(cerradasMTD.map(r => String(r.oc)));
+  const boRows = (BO.rows || []).filter(r => ocIds.has(String(r.oc)));
+
+  // Si BO.rows aún no cargó, cargarlo en background y reintentar
+  if (!BO.rows.length && ocIds.size > 0) {
+    fetch("/api/backorder-detail")
+      .then(r => r.json())
+      .then(d => { BO.rows = d.rows || []; _renderDashLossTree(visibleOrders); })
+      .catch(() => {});
+    return;
+  }
+
+  // Agrupar por categoría árbol de pérdida
+  const COLORS = ["#dc2626","#ea580c","#ca8a04","#16a34a","#2563eb","#7c3aed","#db2777","#0891b2","#65a30d","#b45309"];
+  const groups = {};
+  boRows.forEach(r => {
+    const k = (r.categoria_arbol && r.categoria_arbol.trim()) ? r.categoria_arbol.trim() : "Sin clasificar";
+    if (!groups[k]) groups[k] = { bo_un: 0, bo_val: 0, items: [] };
+    groups[k].bo_un  += (r.bo_un        || 0);
+    groups[k].bo_val += (r.bo_valorizado || 0);
+    groups[k].items.push(r);
+  });
+
+  const entries  = Object.entries(groups).sort((a, b) => b[1].bo_val - a[1].bo_val);
+  const totalVal = entries.reduce((s, [, v]) => s + v.bo_val, 0);
+
+  if (!entries.length) {
+    if (_DASH_LOSS.chart) { _DASH_LOSS.chart.destroy(); _DASH_LOSS.chart = null; }
+    if (tbl) tbl.innerHTML = `<div style="padding:24px;color:#aaa;font-size:12px;text-align:center">Sin back order en OCs cerradas MTD</div>`;
+    return;
+  }
+
+  const labels   = entries.map(([k]) => k);
+  const values   = entries.map(([, v]) => v.bo_val);
+  const units    = entries.map(([, v]) => v.bo_un);
+  const skuCnt   = entries.map(([, v]) => v.items.length);
+  const bgColors = entries.map((_, i) => COLORS[i % COLORS.length]);
+
+  if (_DASH_LOSS.chart) _DASH_LOSS.chart.destroy();
+  _DASH_LOSS.chart = new Chart(ctx, {
+    type: "doughnut",
+    data: { labels, datasets: [{ data: values, backgroundColor: bgColors.map(c => c + "dd"), borderColor: bgColors, borderWidth: 2, hoverOffset: 8 }] },
+    options: {
+      responsive: true, cutout: "52%",
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: {
+          label: c => { const pct = totalVal > 0 ? ((c.raw/totalVal)*100).toFixed(1) : 0; return ` ${fmtMoney(c.raw)}  (${pct}%)`; },
+          afterLabel: c => ` ${fmtNum(units[c.dataIndex])} UN · ${skuCnt[c.dataIndex]} SKU`,
+        }}
+      }
+    }
+  });
+
+  if (!tbl) return;
+  const rowsHtml = entries.map(([k, v], i) => {
+    const pct = totalVal > 0 ? ((v.bo_val / totalVal) * 100).toFixed(1) : "0.0";
+    const uid = `dlt-skus-${i}`;
+    const skuRows = v.items.map(r => `
+      <tr style="background:#fafafa">
+        <td colspan="2" style="padding:5px 12px 5px 36px;font-size:10px;color:#444">${esc(r.producto)}</td>
+        <td style="padding:5px 10px;text-align:right;font-size:10px;color:#666">${fmtPct(r.fill_rate)}</td>
+        <td style="padding:5px 10px;text-align:right;font-size:10px;font-weight:600;font-variant-numeric:tabular-nums">${fmtMoney(r.bo_valorizado)}</td>
+        <td style="padding:5px 10px;text-align:right;font-size:10px;color:#666">${fmtNum(r.bo_un)}</td>
+        <td></td>
+      </tr>`).join("");
+    return `
+      <tr style="border-bottom:1px solid #f0f0f0">
+        <td style="padding:8px 10px"><div style="width:12px;height:12px;border-radius:3px;background:${bgColors[i]}"></div></td>
+        <td style="padding:8px 10px;font-weight:600;color:#1a1a1a">${esc(k)}</td>
+        <td style="padding:8px 10px;text-align:right">
+          <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px">
+            <div style="width:60px;height:6px;background:#f0f0f0;border-radius:3px;overflow:hidden">
+              <div style="width:${pct}%;height:100%;background:${bgColors[i]};border-radius:3px"></div>
+            </div>
+            <span style="font-weight:700;color:#333;min-width:36px;text-align:right">${pct}%</span>
+          </div>
+        </td>
+        <td style="padding:8px 10px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums">${fmtMoney(v.bo_val)}</td>
+        <td style="padding:8px 10px;text-align:right;color:#555">${fmtNum(v.bo_un)}</td>
+        <td style="padding:8px 10px;text-align:right">
+          <button onclick="toggleLtSkus('${uid}',this)"
+            style="background:none;border:1px solid #e4e4e4;border-radius:4px;padding:3px 8px;font-size:9px;font-family:inherit;font-weight:700;color:#555;cursor:pointer;letter-spacing:.3px;white-space:nowrap">
+            ${v.items.length} SKU ▼
+          </button>
+        </td>
+      </tr>
+      <tr id="${uid}" style="display:none;border-bottom:1px solid #e8e8e8">
+        <td colspan="6" style="padding:0">
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr style="background:#f5f5f5">
+              <th colspan="2" style="padding:5px 12px 5px 36px;text-align:left;font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#888">Producto</th>
+              <th style="padding:5px 10px;text-align:right;font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#888">FR</th>
+              <th style="padding:5px 10px;text-align:right;font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#888">BO Val.</th>
+              <th style="padding:5px 10px;text-align:right;font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#888">UN</th>
+              <th></th>
+            </tr></thead>
+            <tbody>${skuRows}</tbody>
+          </table>
+        </td>
+      </tr>`;
+  }).join("");
+
+  tbl.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <thead><tr style="border-bottom:2px solid #e8e8e8">
+        <th style="padding:6px 10px;width:24px"></th>
+        <th style="text-align:left;padding:6px 10px;font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#666">Motivo</th>
+        <th style="text-align:right;padding:6px 10px;font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#666">% del BO</th>
+        <th style="text-align:right;padding:6px 10px;font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#666">Valorizado</th>
+        <th style="text-align:right;padding:6px 10px;font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#666">UN</th>
+        <th></th>
+      </tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>`;
 }
 
 // ── PANEL BO POR PRODUCTO ─────────────────────────────────────
@@ -2004,6 +2153,13 @@ async function loadTrackingPT() {
     (json.aromas     || []).forEach(a => aromaSel.insertAdjacentHTML("beforeend",`<option value="${esc(a)}">${esc(a)}</option>`));
     (json.abcs       || []).forEach(b => abcSel.insertAdjacentHTML("beforeend",  `<option value="${esc(b)}">${esc(b)}</option>`));
 
+    // Headers dinámicos de los 3 meses cerrados
+    const labels = json.last3_labels || [];
+    ["tptMes1Hdr","tptMes2Hdr","tptMes3Hdr"].forEach((id, i) => {
+      const el = document.getElementById(id);
+      if (el && labels[i]) el.textContent = labels[i];
+    });
+
     filterTrackingPT();
   } catch(e) {
     document.getElementById("tptBody").innerHTML =
@@ -2067,20 +2223,20 @@ function renderTPT() {
     const fa     = _tptPctChip(r.fa);
     const dohCls = r.doh === null ? "" : r.doh < 7 ? "doh-low" : r.doh > 60 ? "doh-high" : "doh-ok";
     const dohTxt = r.doh !== null ? r.doh.toFixed(1) : "—";
-    const dohPTxt = r.doh_prod !== null ? r.doh_prod.toFixed(1) : "—";
+    const meses  = (r.meses_ant || []).map(v =>
+      `<td style="text-align:right;color:#999">${v !== null ? v.toLocaleString("es-CL") : "—"}</td>`
+    ).join("");
     return `<tr>
       <td style="font-size:11px;color:#888;font-family:monospace">${esc(r.ean)}</td>
       <td style="font-weight:500;max-width:220px">${esc(r.producto)}</td>
       <td>${esc(r.marca)}</td>
       <td style="text-align:center"><span class="abc-badge ${abcCls}">${esc(r.abc)}</span></td>
-      <td style="text-align:right">${r.venta_mtd !== null ? r.venta_mtd.toLocaleString("es-CL") : "—"}</td>
+      ${meses}
+      <td style="text-align:right;font-weight:600">${r.venta_mtd !== null ? r.venta_mtd.toLocaleString("es-CL") : "—"}</td>
       <td style="text-align:center">${cumpl}</td>
       <td style="text-align:center">${fa}</td>
       <td style="text-align:right">${r.stock !== null ? r.stock.toLocaleString("es-CL") : "—"}</td>
       <td style="text-align:right"><span class="${dohCls}">${dohTxt}</span></td>
-      <td style="text-align:right">${dohPTxt}</td>
-      <td style="text-align:center">${r.oc_pendiente !== null && r.oc_pendiente > 0 ? r.oc_pendiente.toLocaleString("es-CL") : "—"}</td>
-      <td style="font-size:11px;color:#888;max-width:140px">${esc(r.comentario)}</td>
     </tr>`;
   }).join("");
 
@@ -2119,6 +2275,12 @@ function renderTPTKpis(rows) {
     : cumplProm >= 90 ? "s-green" : cumplProm >= 80 ? "s-yellow"
     : cumplProm >= 70 ? "s-orange" : "s-red";
 
+  const faAB      = TPT.data?.fa_ab_mtd ?? null;
+  const fcstLabel = TPT.data?.fcst_label ?? "";
+  const faABColor = faAB === null ? "s-neu"
+    : faAB >= 90 ? "s-green" : faAB >= 80 ? "s-yellow"
+    : faAB >= 70 ? "s-orange" : "s-red";
+
   grid.innerHTML = `
     <div class="kpi-s s-neu">
       <div>
@@ -2132,6 +2294,13 @@ function renderTPTKpis(rows) {
         <div class="kpi-s-lbl">Cumplimiento Prom.</div>
         <div class="kpi-s-val">${cumplProm !== null ? cumplProm.toFixed(1)+"%" : "—"}</div>
         <div class="kpi-s-sub">vs forecast S&OP</div>
+      </div><div class="kpi-s-dot"></div>
+    </div>
+    <div class="kpi-s ${faABColor}">
+      <div>
+        <div class="kpi-s-lbl">FA A+B MTD</div>
+        <div class="kpi-s-val">${faAB !== null ? faAB.toFixed(1)+"%" : "—"}</div>
+        <div class="kpi-s-sub">portafolio A&amp;B · ${fcstLabel}</div>
       </div><div class="kpi-s-dot"></div>
     </div>
     <div class="kpi-s s-neu">
