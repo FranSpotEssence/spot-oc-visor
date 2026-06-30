@@ -1107,11 +1107,29 @@ def api_spotia_clientes():
 
 
 # ── TRACKING PT ───────────────────────────────────────────────────────────────
+_TRACKING_PT_FOLDER = os.getenv(
+    "TRACKING_PT_LOCAL_FOLDER",
+    r"C:\Users\FranciscaLagos\OneDrive - Spot Essence\Escritorio\Tracking Diario"
+)
+# Fallback fijo, solo se usa si la carpeta local no existe o no tiene .xlsx
 _TRACKING_PT_FILE = os.getenv(
     "TRACKING_PT_FILE",
     r"C:\Users\FranciscaLagos\OneDrive - Spot Essence\Escritorio\Tracking Diario\(25) Tracking Diario 24-06-2026.xlsx"
 )
 _tracking_pt_cache: dict | None = None
+
+
+def _latest_local_tracking_pt_file() -> str:
+    """Retorna la ruta del .xlsx con fecha de modificación más reciente en la carpeta local de Tracking Diario."""
+    if os.path.isdir(_TRACKING_PT_FOLDER):
+        candidates = [
+            os.path.join(_TRACKING_PT_FOLDER, f)
+            for f in os.listdir(_TRACKING_PT_FOLDER)
+            if f.lower().endswith(".xlsx") and not f.startswith("~$")
+        ]
+        if candidates:
+            return max(candidates, key=os.path.getmtime)
+    return _TRACKING_PT_FILE
 
 def _load_tracking_pt_source() -> tuple["pd.DataFrame", str, str]:
     """
@@ -1137,15 +1155,17 @@ def _load_tracking_pt_source() -> tuple["pd.DataFrame", str, str]:
     except Exception as e:
         log.warning(f"No se pudo leer Tracking PT desde SharePoint ({e}); usando archivo local de respaldo")
 
+    local_path = _latest_local_tracking_pt_file()
+
     import shutil, tempfile
     with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
-        shutil.copy2(_TRACKING_PT_FILE, tmp.name)
+        shutil.copy2(local_path, tmp.name)
         tmp_path = tmp.name
     df = pd.read_excel(tmp_path, sheet_name="Tracking PT", header=6)
     os.remove(tmp_path)
-    file_name = os.path.basename(_TRACKING_PT_FILE)
+    file_name = os.path.basename(local_path)
     try:
-        file_modified = datetime.fromtimestamp(os.path.getmtime(_TRACKING_PT_FILE)).strftime("%d-%b-%Y %H:%M")
+        file_modified = datetime.fromtimestamp(os.path.getmtime(local_path)).strftime("%d-%b-%Y %H:%M")
     except OSError:
         file_modified = "—"
     return df, file_name, file_modified
