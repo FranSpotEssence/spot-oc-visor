@@ -233,10 +233,10 @@ function renderTable(orders) {
 
   tbody.innerHTML = orders.map(r => {
     const cerrada = (r.estado || "").toUpperCase() === "CERRADA";
-    const clienteCls = cerrada ? "text-green" : "text-yellow";
+    const clienteCls = cerrada ? "c-green" : "c-yellow";
     return `
     <tr onclick="openDetail('${esc(r.oc)}','${esc(r.cliente)}')">
-      <td><strong class="${clienteCls}">${esc(r.cliente)}</strong></td>
+      <td><span class="cliente-chip ${clienteCls}">${esc(r.cliente)}</span></td>
       <td class="font-mono">${esc(r.oc)}</td>
       <td class="${r.fecha_clase}">${esc(r.fecha_despacho)}</td>
       <td><span class="fr-chip ${r.fr_chip}">${fmtPct(r.fill_rate)}</span></td>

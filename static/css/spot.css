@@ -454,6 +454,18 @@ body {
 .fr-chip.c-orange { background: var(--bg-orange); color: var(--c-orange); }
 .fr-chip.c-red    { background: var(--bg-red);    color: var(--c-red); }
 
+/* Chip nombre cliente — estado de la OC (cerrada/abierta) */
+.cliente-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 700;
+}
+.cliente-chip.c-green  { background: var(--bg-green);  color: var(--c-green); }
+.cliente-chip.c-yellow { background: var(--bg-yellow); color: var(--c-yellow); }
+
 /* Estado badge */
 .estado-badge {
   font-size: 8px;
