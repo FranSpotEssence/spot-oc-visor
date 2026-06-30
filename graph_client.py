@@ -134,6 +134,70 @@ def _download_from_onedrive(token: str) -> bytes:
     resp.raise_for_status()
 
 
+def _encode_share_url(share_url: str) -> str:
+    """Codifica una URL para usarla como shareId en /shares/{id}."""
+    import base64
+    b64 = base64.urlsafe_b64encode(share_url.encode("utf-8")).decode("utf-8")
+    b64 = b64.rstrip("=")
+    return "u!" + b64
+
+
+def get_latest_file_in_folder(share_url: str, name_contains: str = "") -> dict:
+    """
+    Resuelve un link de carpeta compartida de SharePoint y retorna el
+    metadata del archivo .xlsx más reciente (por lastModifiedDateTime).
+    """
+    token   = _get_token()
+    headers = {"Authorization": f"Bearer {token}"}
+    share_id = _encode_share_url(share_url)
+
+    url  = f"{GRAPH_BASE}/shares/{share_id}/driveItem/children"
+    resp = requests.get(url, headers=headers, timeout=30)
+    resp.raise_for_status()
+    items = resp.json().get("value", [])
+
+    xlsx = [it for it in items if it.get("name", "").lower().endswith(".xlsx")]
+    if name_contains:
+        filtered = [it for it in xlsx if name_contains.lower() in it["name"].lower()]
+        xlsx = filtered or xlsx
+
+    if not xlsx:
+        raise FileNotFoundError("No se encontraron archivos .xlsx en la carpeta de SharePoint")
+
+    xlsx.sort(key=lambda it: it.get("lastModifiedDateTime", ""), reverse=True)
+    latest = xlsx[0]
+    log.info(f"Archivo más reciente en carpeta: {latest['name']} ({latest.get('lastModifiedDateTime')})")
+    return latest
+
+
+def download_file_content(item: dict) -> bytes:
+    """Descarga el contenido binario de un driveItem (dict retornado por Graph)."""
+    download_url = item.get("@microsoft.graph.downloadUrl")
+    if download_url:
+        resp = requests.get(download_url, timeout=60)
+        resp.raise_for_status()
+        return resp.content
+
+    token    = _get_token()
+    headers  = {"Authorization": f"Bearer {token}"}
+    drive_id = item["parentReference"]["driveId"]
+    item_id  = item["id"]
+    url      = f"{GRAPH_BASE}/drives/{drive_id}/items/{item_id}/content"
+    resp = requests.get(url, headers=headers, timeout=60)
+    resp.raise_for_status()
+    return resp.content
+
+
+def download_latest_from_folder(share_url: str, name_contains: str = "") -> tuple[bytes, str, str | None]:
+    """
+    Descarga el archivo .xlsx más reciente de una carpeta compartida de SharePoint.
+    Retorna (bytes, nombre_archivo, lastModifiedDateTime).
+    """
+    item = get_latest_file_in_folder(share_url, name_contains)
+    content = download_file_content(item)
+    return content, item["name"], item.get("lastModifiedDateTime")
+
+
 def get_file_last_modified() -> str | None:
     """Retorna la fecha de última modificación del Excel."""
     try:

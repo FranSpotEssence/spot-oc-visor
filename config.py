@@ -14,6 +14,12 @@ class Config:
     SHAREPOINT_SITE  = os.getenv("SHAREPOINT_SITE", "")   # e.g. "tenant.sharepoint.com:/sites/SITE"
     EXCEL_FILE_PATH  = os.getenv("EXCEL_FILE_PATH", "Seguimientos OCs.xlsx")
 
+    # Carpeta SharePoint de Tracking Diario PT — siempre se usa el .xlsx más reciente
+    TRACKING_PT_FOLDER_URL = os.getenv(
+        "TRACKING_PT_FOLDER_URL",
+        "https://spotessence1.sharepoint.com/:f:/s/SUPPLY/IgAiNvx0TDCUSbaEbbINMoNkAaCdc2l6EKZl6F-xbJ6lsRo?e=W0F2fm",
+    )
+
     # App
     REFRESH_INTERVAL = int(os.getenv("REFRESH_INTERVAL_MINUTES", "60"))
     SECRET_KEY       = os.getenv("SECRET_KEY", "spot-essence-secret-2024")

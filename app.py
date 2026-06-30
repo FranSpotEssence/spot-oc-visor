@@ -44,10 +44,17 @@ app.config["SECRET_KEY"] = Config.SECRET_KEY
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 CORS(app)
 
+def _refresh_all_data():
+    """Refresca el Excel principal y limpia el cache de Tracking PT (recarga el .xlsx más reciente de la carpeta)."""
+    global _tracking_pt_cache
+    refresh_data()
+    _tracking_pt_cache = None
+
+
 # ── Scheduler (refresh automático) ───────────────────────────────
 scheduler = BackgroundScheduler(daemon=True)
 scheduler.add_job(
-    func=refresh_data,
+    func=_refresh_all_data,
     trigger="interval",
     minutes=Config.REFRESH_INTERVAL,
     id="refresh_excel",
@@ -231,8 +238,10 @@ def api_clientes():
 @_login_required
 def api_refresh():
     """Fuerza recarga del Excel desde OneDrive."""
+    global _tracking_pt_cache
     log.info("Refresh manual solicitado via API")
     ok = refresh_data(force=True)
+    _tracking_pt_cache = None
     cache = get_cache()
     return jsonify({
         "ok":         ok,
@@ -1104,10 +1113,29 @@ _TRACKING_PT_FILE = os.getenv(
 )
 _tracking_pt_cache: dict | None = None
 
-def _load_tracking_pt() -> dict:
-    global _tracking_pt_cache
-    if _tracking_pt_cache is not None:
-        return _tracking_pt_cache
+def _load_tracking_pt_source() -> tuple["pd.DataFrame", str, str]:
+    """
+    Carga el DataFrame de Tracking PT desde la carpeta de SharePoint
+    (siempre el .xlsx más reciente). Si falla (sin credenciales, sin
+    consentimiento, etc.) cae de vuelta al archivo local de respaldo.
+    Retorna (df, file_name, file_modified_str).
+    """
+    import io
+    try:
+        from graph_client import download_latest_from_folder
+        content, file_name, modified_iso = download_latest_from_folder(
+            Config.TRACKING_PT_FOLDER_URL, name_contains="Tracking Diario"
+        )
+        df = pd.read_excel(io.BytesIO(content), sheet_name="Tracking PT", header=6)
+        file_modified = "—"
+        if modified_iso:
+            try:
+                file_modified = pd.Timestamp(modified_iso).strftime("%d-%b-%Y %H:%M")
+            except Exception:
+                file_modified = modified_iso
+        return df, file_name, file_modified
+    except Exception as e:
+        log.warning(f"No se pudo leer Tracking PT desde SharePoint ({e}); usando archivo local de respaldo")
 
     import shutil, tempfile
     with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
@@ -1115,6 +1143,20 @@ def _load_tracking_pt() -> dict:
         tmp_path = tmp.name
     df = pd.read_excel(tmp_path, sheet_name="Tracking PT", header=6)
     os.remove(tmp_path)
+    file_name = os.path.basename(_TRACKING_PT_FILE)
+    try:
+        file_modified = datetime.fromtimestamp(os.path.getmtime(_TRACKING_PT_FILE)).strftime("%d-%b-%Y %H:%M")
+    except OSError:
+        file_modified = "—"
+    return df, file_name, file_modified
+
+
+def _load_tracking_pt() -> dict:
+    global _tracking_pt_cache
+    if _tracking_pt_cache is not None:
+        return _tracking_pt_cache
+
+    df, file_name, file_modified = _load_tracking_pt_source()
 
     def _clean(v):
         if v is None: return ""
@@ -1178,12 +1220,6 @@ def _load_tracking_pt() -> dict:
     aromas     = sorted({r["aroma"]     for r in rows if r["aroma"]})
     abcs       = sorted({r["abc"]       for r in rows if r["abc"]})
 
-    file_name = os.path.basename(_TRACKING_PT_FILE)
-    try:
-        file_modified = datetime.fromtimestamp(os.path.getmtime(_TRACKING_PT_FILE)).strftime("%d-%b-%Y %H:%M")
-    except OSError:
-        file_modified = "—"
-
     _tracking_pt_cache = {
         "rows": rows, "categorias": categorias, "aromas": aromas, "abcs": abcs,
         "fa_ab_mtd": fa_ab_mtd, "fcst_label": fcst_label,
@@ -1201,6 +1237,20 @@ def api_tracking_pt():
     except Exception as e:
         log.error(f"Error loading Tracking PT: {e}")
         return jsonify({"error": str(e), "rows": [], "categorias": [], "aromas": [], "abcs": []}), 500
+
+
+@app.route("/api/tracking-pt/refresh", methods=["POST"])
+@_login_required
+def api_tracking_pt_refresh():
+    """Fuerza recarga del Tracking PT desde la carpeta SharePoint (toma el archivo más reciente)."""
+    global _tracking_pt_cache
+    _tracking_pt_cache = None
+    try:
+        data = _load_tracking_pt()
+        return jsonify({"ok": True, "file_name": data.get("file_name"), "file_modified": data.get("file_modified")})
+    except Exception as e:
+        log.error(f"Error refrescando Tracking PT: {e}")
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 if __name__ == "__main__":
