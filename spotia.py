@@ -284,6 +284,115 @@ def build_context(df: pd.DataFrame, cliente_ctx: str = "") -> str:
     return "\n".join(lines)
 
 
+def build_light_context(df: pd.DataFrame, cliente_ctx: str = "") -> str:
+    """
+    Contexto compacto (~2.000 tokens) para preguntas de modo rápido.
+    Omite detalle SKU por OC y limita históricos.
+    """
+    if df is None or df.empty:
+        return "No hay datos cargados actualmente."
+
+    today  = pd.Timestamp(date.today())
+    cur_y  = today.year
+    cur_m  = today.month
+    dfall  = df.copy()
+    dfw    = df.dropna(subset=["fecha_despacho"]).copy()
+
+    if cliente_ctx:
+        df_scope  = dfall[dfall["cliente"] == cliente_ctx].copy()
+        dfw_scope = dfw[dfw["cliente"] == cliente_ctx].copy()
+        scope_label = f"CLIENTE: {cliente_ctx}"
+    else:
+        df_scope  = dfall
+        dfw_scope = dfw
+        scope_label = "TODOS LOS CLIENTES"
+
+    lines = []
+    lines.append(f"=== RESUMEN SUPPLY CHAIN SPOT ESSENCE — {today.strftime('%d/%m/%Y')} ===")
+    lines.append(f"Alcance: {scope_label}")
+    lines.append("")
+
+    # KPIs globales
+    sol  = df_scope["un_solicitadas"].sum()
+    asig = df_scope["un_asignadas"].sum()
+    bv   = df_scope["bo_valorizado"].sum()
+    lines.append(f"FR global: {_fr(sol, asig)}%  |  BO valorizado total: ${bv:,.0f}")
+
+    # MTD
+    df_mtd = dfw_scope[
+        (dfw_scope["fecha_despacho"].dt.year  == cur_y) &
+        (dfw_scope["fecha_despacho"].dt.month == cur_m) &
+        (dfw_scope["fecha_despacho"] <= today)
+    ]
+    if not df_mtd.empty:
+        sol_m = df_mtd["un_solicitadas"].sum()
+        lines.append(
+            f"FR MTD: {_fr(sol_m, df_mtd['un_asignadas'].sum())}%  |  "
+            f"Facturado MTD: ${df_mtd['valor_facturado'].sum():,.0f}  |  "
+            f"BO MTD: ${df_mtd['bo_valorizado'].sum():,.0f}"
+        )
+    lines.append("")
+
+    # Últimos 6 meses (sin detalle SKU)
+    lines.append("--- FR MENSUAL (últimos 6 meses) ---")
+    dfw_scope["_ym"] = dfw_scope["fecha_despacho"].dt.to_period("M")
+    mo_grp = dfw_scope.groupby("_ym").agg(
+        un_sol  =("un_solicitadas", "sum"),
+        un_asig =("un_asignadas",   "sum"),
+        bo_val  =("bo_valorizado",  "sum"),
+    ).reset_index().sort_values("_ym").tail(6)
+    for _, r in mo_grp.iterrows():
+        lines.append(f"  {r['_ym']}: FR={_fr(r['un_sol'],r['un_asig'])}% | BO=${r['bo_val']:,.0f}")
+    lines.append("")
+
+    # OCs activas — resumen sin detalle SKU
+    df_pend = df_scope[df_scope["estado"].str.upper().isin(["PENDIENTE", "BACK ORDER"])].copy()
+    lines.append(f"--- OCs ACTIVAS: {df_pend['oc'].nunique()} OCs ---")
+    n_bo   = df_pend[df_pend["bo_un"] > 0]["oc"].nunique()
+    n_venc = 0
+    if "es_vencida" in df_pend.columns:
+        n_venc = df_pend[df_pend["es_vencida"] == True]["oc"].nunique()
+    lines.append(f"  Con BO: {n_bo}  |  Vencidas: {n_venc}  |  BO total: ${df_pend['bo_valorizado'].sum():,.0f}")
+
+    # Top 10 OCs con mayor BO (sin SKU)
+    oc_bo = df_pend[df_pend["bo_un"] > 0].groupby(["oc","cliente"]).agg(
+        bo_val=("bo_valorizado","sum"), bo_un=("bo_un","sum"),
+        fd=("fecha_despacho","first"), fr_sol=("un_solicitadas","sum"), fr_asig=("un_asignadas","sum"),
+    ).reset_index().sort_values("bo_val", ascending=False).head(10)
+    for _, r in oc_bo.iterrows():
+        fd_str = r["fd"].strftime("%d/%m/%Y") if pd.notna(r["fd"]) else "S/F"
+        venc_tag = " ⚠VENCIDA" if ("es_vencida" in df_pend.columns and
+            df_pend[(df_pend["oc"]==r["oc"]) & (df_pend["es_vencida"]==True)].any().any()) else ""
+        lines.append(
+            f"  OC {r['oc']} | {r['cliente']} | Desp:{fd_str}{venc_tag} | "
+            f"FR={_fr(r['fr_sol'],r['fr_asig'])}% | BO: {int(r['bo_un'])}un / ${r['bo_val']:,.0f}"
+        )
+    lines.append("")
+
+    # Top 10 productos con BO
+    lines.append("--- TOP 10 PRODUCTOS CON MAYOR BO ---")
+    df_bo_p = df_pend[df_pend["bo_un"] > 0].groupby("producto").agg(
+        bo_un=("bo_un","sum"), bo_val=("bo_valorizado","sum"),
+        un_sol=("un_solicitadas","sum"), un_asig=("un_asignadas","sum"),
+    ).reset_index().sort_values("bo_val", ascending=False).head(10)
+    for _, r in df_bo_p.iterrows():
+        lines.append(f"  {r['producto']}: FR={_fr(r['un_sol'],r['un_asig'])}% | BO {int(r['bo_un'])}un / ${r['bo_val']:,.0f}")
+    lines.append("")
+
+    # FR por cliente (global, siempre pequeño)
+    if not cliente_ctx:
+        lines.append("--- FR POR CLIENTE ---")
+        cli_g = dfall.groupby("cliente").agg(
+            un_sol=("un_solicitadas","sum"), un_asig=("un_asignadas","sum"),
+            bo_val=("bo_valorizado","sum"),
+        ).reset_index()
+        cli_g["fr"] = cli_g.apply(lambda r: _fr(r["un_sol"], r["un_asig"]), axis=1)
+        for _, r in cli_g.sort_values("fr").iterrows():
+            lines.append(f"  {r['cliente']}: FR={r['fr']}% | BO=${r['bo_val']:,.0f}")
+
+    return "\n".join(lines)
+
+
 # ── Llamada a Claude API ──────────────────────────────────────────
 
 def ask_spotia(question: str, context: str, mode: str = "chat", cliente_ctx: str = "") -> str:

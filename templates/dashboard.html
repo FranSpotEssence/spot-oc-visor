@@ -611,14 +611,14 @@
             <select id="spotiaClienteCtx" class="spotia-select">
               <option value="">Todos los clientes</option>
             </select>
-            <button class="spotia-mode-btn" onclick="spotiaMode('executive')" title="Resumen Ejecutivo">
-              📊 Resumen Ejecutivo
+            <button class="spotia-mode-btn" onclick="spotiaMode('executive')" title="Estado del mes">
+              📊 Estado del mes
             </button>
-            <button class="spotia-mode-btn" onclick="spotiaMode('comercial')" title="Preparar Reunión">
-              🤝 Preparar Reunión
+            <button class="spotia-mode-btn" onclick="spotiaMode('riesgos')" title="OCs con riesgo">
+              ⚠️ OCs con riesgo
             </button>
-            <button class="spotia-mode-btn" onclick="spotiaMode('riesgos')" title="Analizar Riesgos">
-              ⚠️ Analizar Riesgos
+            <button class="spotia-mode-btn" onclick="spotiaMode('comercial')" title="Resumen por cliente">
+              🤝 Resumen cliente
             </button>
             <button class="spotia-clear-btn" onclick="spotiaClearHistory()" title="Limpiar historial de conversación">
               🗑 Limpiar
@@ -629,14 +629,14 @@
         <!-- Preguntas sugeridas -->
         <div class="spotia-suggestions" id="spotiaSuggestions">
           <span class="spotia-sug-label">Preguntas frecuentes:</span>
-          <button class="spotia-chip" onclick="spotiaAsk('¿Cuál es el Fill Rate MTD global?')">FR MTD global</button>
-          <button class="spotia-chip" onclick="spotiaAsk('¿Qué clientes tienen el peor Fill Rate este mes?')">Peor FR del mes</button>
-          <button class="spotia-chip" onclick="spotiaAsk('¿Cuánto Back Order tenemos actualmente?')">Back Order total</button>
-          <button class="spotia-chip" onclick="spotiaAsk('¿Cuáles son las OCs más críticas?')">OCs críticas</button>
-          <button class="spotia-chip" onclick="spotiaAsk('¿Qué productos explican el mayor Back Order?')">Top SKU con BO</button>
+          <button class="spotia-chip" onclick="spotiaAsk('¿Cuál es el Fill Rate MTD?')">FR del mes</button>
+          <button class="spotia-chip" onclick="spotiaAsk('¿Qué clientes tienen el FR más bajo?')">FR por cliente</button>
+          <button class="spotia-chip" onclick="spotiaAsk('¿Cuál es el Back Order valorizado total?')">BO total</button>
+          <button class="spotia-chip" onclick="spotiaAsk('¿Qué OCs están vencidas?')">OCs vencidas</button>
+          <button class="spotia-chip" onclick="spotiaAsk('¿Cuáles son los 5 productos con más Back Order?')">Top 5 BO</button>
           <button class="spotia-chip" onclick="spotiaAsk('¿Cuánto hemos facturado este mes?')">Facturación MTD</button>
-          <button class="spotia-chip" onclick="spotiaAsk('¿Qué pedidos están vencidos?')">Pedidos vencidos</button>
-          <button class="spotia-chip" onclick="spotiaAsk('¿Cuál fue la evolución del Fill Rate en los últimos 6 meses?')">Evolución FR</button>
+          <button class="spotia-chip" onclick="spotiaAsk('¿Cómo evolucionó el FR en los últimos 3 meses?')">Tendencia FR</button>
+          <button class="spotia-chip" onclick="spotiaAsk('¿Qué OCs tienen FR menor al 80%?')">FR crítico</button>
         </div>
 
         <!-- Área de chat -->

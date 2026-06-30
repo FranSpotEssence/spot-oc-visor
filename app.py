@@ -15,7 +15,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from config import Config
 from data_loader import refresh_data, get_df, get_pending_df, get_week_closed_df, get_cache, get_bo_detail_df
 from kpi_calculator import compute_kpis, compute_oc_detail, fr_chip_class, semaforo_fr
-from spotia import build_context, ask_spotia
+from spotia import build_context, build_light_context, ask_spotia
 
 _NAN_STRS = {"nan", "none", "null", "n/a", "na", "nd"}
 
@@ -1090,9 +1090,13 @@ def api_spotia():
     if not question and mode == "chat":
         return jsonify({"error": "Sin pregunta"}), 400
 
-    df      = get_df()
-    context = build_context(df, cliente_ctx)
-    answer  = ask_spotia(question, context, mode, cliente_ctx)
+    df = get_df()
+    # Modos predefinidos usan contexto liviano (~2.000 tokens) para respetar rate limits
+    if mode in ("executive", "comercial", "riesgos"):
+        context = build_light_context(df, cliente_ctx)
+    else:
+        context = build_context(df, cliente_ctx)
+    answer = ask_spotia(question, context, mode, cliente_ctx)
     return jsonify({"answer": answer})
 
 
