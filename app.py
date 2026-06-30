@@ -1231,12 +1231,25 @@ def _load_tracking_pt() -> dict:
         })
 
     # FA A+B MTD: error calculado a nivel SKU (código) y luego ponderado por unidades.
-    # Para cada código A/B: error_sku = |Venta MTD - Forecast mes|
-    # FA = 1 - ( Σ error_sku de A+B ) / ( Σ Forecast mes de A+B )
-    ab_rows = [r for r in rows if r["abc"] in ("A", "B") and r["fcst_mes"] and r["fcst_mes"] > 0]
-    error_total = sum(abs((r["venta_mtd"] or 0) - r["fcst_mes"]) for r in ab_rows)
-    fcst_total  = sum(r["fcst_mes"] for r in ab_rows)
-    fa_ab_mtd   = round(max(0.0, 1 - error_total / fcst_total) * 100, 1) if fcst_total else None
+    # Para cada código A/B con forecast > 0: error_sku = |Venta MTD - Forecast mes|, peso = Forecast mes
+    # Caso forecast = 0:
+    #   - venta = 0  → FA SKU = 100% → no aporta error ni peso (no distorsiona el agregado)
+    #   - venta > 0  → FA SKU = 0%   → error_sku = venta, peso = venta (penaliza el agregado)
+    # FA = 1 - ( Σ error_sku de A+B ) / ( Σ peso_sku de A+B )
+    ab_rows = [r for r in rows if r["abc"] in ("A", "B") and r["fcst_mes"] is not None]
+    error_total = 0.0
+    peso_total  = 0.0
+    for r in ab_rows:
+        venta = r["venta_mtd"] or 0
+        fcst  = r["fcst_mes"]
+        if fcst > 0:
+            error_total += abs(venta - fcst)
+            peso_total  += fcst
+        elif venta > 0:
+            error_total += venta
+            peso_total  += venta
+        # fcst == 0 y venta == 0 → FA 100%, no aporta al agregado
+    fa_ab_mtd = round(max(0.0, 1 - error_total / peso_total) * 100, 1) if peso_total else None
 
     categorias = sorted({r["categoria"] for r in rows if r["categoria"]})
     aromas     = sorted({r["aroma"]     for r in rows if r["aroma"]})
