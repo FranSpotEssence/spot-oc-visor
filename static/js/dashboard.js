@@ -1989,9 +1989,71 @@ function boColor(fr) {
 // ══════════════════════════════════════════════════════════════════
 
 const SPOTIA = {
-  history: [],        // mensajes mostrados
+  history: [],        // mensajes en memoria
   loading: false,
 };
+
+const _SPOTIA_KEY = "spotia_history";
+const _SPOTIA_TTL = 48 * 60 * 60 * 1000; // 48 horas en ms
+
+function _spotiaReadStorage() {
+  try {
+    const raw = localStorage.getItem(_SPOTIA_KEY);
+    if (!raw) return [];
+    const entries = JSON.parse(raw);
+    const cutoff = Date.now() - _SPOTIA_TTL;
+    return entries.filter(e => e.ts && e.ts > cutoff);
+  } catch { return []; }
+}
+
+function _spotiaWriteStorage(entries) {
+  try { localStorage.setItem(_SPOTIA_KEY, JSON.stringify(entries)); } catch {}
+}
+
+function _spotiaRenderHistory(entries) {
+  if (!entries.length) return;
+  const chat = document.getElementById("spotiaChat");
+  if (!chat) return;
+
+  // Ocultar welcome
+  const welcome = chat.querySelector(".spotia-welcome");
+  if (welcome) welcome.style.display = "none";
+
+  // Agrupar por día para separadores
+  let lastDay = null;
+  entries.forEach(e => {
+    const d = new Date(e.ts);
+    const day = d.toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" });
+    if (day !== lastDay) {
+      const sep = document.createElement("div");
+      sep.className = "spotia-day-sep";
+      sep.textContent = day;
+      chat.appendChild(sep);
+      lastDay = day;
+    }
+    _spotiaAddMsgDOM(e.role, e.content, /* persist= */ false);
+  });
+
+  // Separador "fin del historial"
+  const endSep = document.createElement("div");
+  endSep.className = "spotia-day-sep";
+  endSep.textContent = "▸ conversación actual";
+  chat.appendChild(endSep);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function spotiaClearHistory() {
+  try { localStorage.removeItem(_SPOTIA_KEY); } catch {}
+  SPOTIA.history = [];
+  const chat = document.getElementById("spotiaChat");
+  if (!chat) return;
+  // Borrar todo menos el welcome
+  [...chat.children].forEach(el => {
+    if (!el.classList.contains("spotia-welcome")) el.remove();
+  });
+  const welcome = chat.querySelector(".spotia-welcome");
+  if (welcome) welcome.style.display = "";
+}
 
 function initSpotia() {
   // Cargar lista de clientes
@@ -2008,6 +2070,12 @@ function initSpotia() {
       });
     })
     .catch(() => {});
+
+  // Renderizar historial persistido (últimas 48h)
+  const saved = _spotiaReadStorage();
+  _spotiaWriteStorage(saved); // guarda limpio (sin expirados)
+  SPOTIA.history = [...saved];
+  _spotiaRenderHistory(saved);
 }
 
 function spotiaKeydown(e) {
@@ -2083,7 +2151,7 @@ function spotiaSubmit() {
     });
 }
 
-function _spotiaAddMsg(role, html) {
+function _spotiaAddMsgDOM(role, html, persist = true) {
   const chat = document.getElementById("spotiaChat");
   if (!chat) return;
 
@@ -2098,7 +2166,16 @@ function _spotiaAddMsg(role, html) {
   `;
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
-  SPOTIA.history.push({ role, content: html });
+
+  if (persist) {
+    const entry = { role, content: html, ts: Date.now() };
+    SPOTIA.history.push(entry);
+    _spotiaWriteStorage(SPOTIA.history);
+  }
+}
+
+function _spotiaAddMsg(role, html) {
+  _spotiaAddMsgDOM(role, html, true);
 }
 
 let _spotiaTypingEl = null;
