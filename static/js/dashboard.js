@@ -2238,7 +2238,7 @@ function renderTPT() {
       <td style="text-align:right;font-weight:600">${r.venta_mtd !== null ? r.venta_mtd.toLocaleString("es-CL") : "—"}</td>
       <td style="text-align:center">${cumpl}</td>
       <td style="text-align:center">${fa}</td>
-      <td style="text-align:right">${r.stock !== null ? r.stock.toLocaleString("es-CL") : "—"}</td>
+      <td style="text-align:right;font-weight:700">${r.stock !== null ? r.stock.toLocaleString("es-CL") : "—"}</td>
       <td style="text-align:right"><span class="${dohCls}">${dohTxt}</span></td>
     </tr>`;
   }).join("");
