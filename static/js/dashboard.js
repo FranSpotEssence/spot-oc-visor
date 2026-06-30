@@ -2146,6 +2146,9 @@ async function loadTrackingPT() {
     const json = await res.json();
     TPT.data   = json;
 
+    setEl("tptFileName",    json.file_name     || "—");
+    setEl("tptFileUpdated", json.file_modified || "—");
+
     const catSel   = document.getElementById("tptCategoria");
     const aromaSel = document.getElementById("tptAroma");
     const abcSel   = document.getElementById("tptAbc");

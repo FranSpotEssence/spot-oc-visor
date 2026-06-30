@@ -1178,10 +1178,17 @@ def _load_tracking_pt() -> dict:
     aromas     = sorted({r["aroma"]     for r in rows if r["aroma"]})
     abcs       = sorted({r["abc"]       for r in rows if r["abc"]})
 
+    file_name = os.path.basename(_TRACKING_PT_FILE)
+    try:
+        file_modified = datetime.fromtimestamp(os.path.getmtime(_TRACKING_PT_FILE)).strftime("%d-%b-%Y %H:%M")
+    except OSError:
+        file_modified = "—"
+
     _tracking_pt_cache = {
         "rows": rows, "categorias": categorias, "aromas": aromas, "abcs": abcs,
         "fa_ab_mtd": fa_ab_mtd, "fcst_label": fcst_label,
         "last3_labels": last3_labels,
+        "file_name": file_name, "file_modified": file_modified,
     }
     return _tracking_pt_cache
 
