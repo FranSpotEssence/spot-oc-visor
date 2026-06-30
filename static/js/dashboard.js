@@ -41,9 +41,6 @@ function parseDispatchDate(str) {
 
 function sortWeekOrders(orders) {
   return [...orders].sort((a, b) => {
-    const aClosed = (a.estado || "").toUpperCase() === "CERRADA";
-    const bClosed = (b.estado || "").toUpperCase() === "CERRADA";
-    if (aClosed !== bClosed) return aClosed ? 1 : -1;
     const da = parseDispatchDate(a.fecha_despacho);
     const db = parseDispatchDate(b.fecha_despacho);
     if (!da && !db) return 0;
@@ -234,9 +231,12 @@ function renderTable(orders) {
     return;
   }
 
-  tbody.innerHTML = orders.map(r => `
+  tbody.innerHTML = orders.map(r => {
+    const cerrada = (r.estado || "").toUpperCase() === "CERRADA";
+    const clienteCls = cerrada ? "text-green" : "text-yellow";
+    return `
     <tr onclick="openDetail('${esc(r.oc)}','${esc(r.cliente)}')">
-      <td><strong>${esc(r.cliente)}</strong></td>
+      <td><strong class="${clienteCls}">${esc(r.cliente)}</strong></td>
       <td class="font-mono">${esc(r.oc)}</td>
       <td class="${r.fecha_clase}">${esc(r.fecha_despacho)}</td>
       <td><span class="fr-chip ${r.fr_chip}">${fmtPct(r.fill_rate)}</span></td>
@@ -245,7 +245,8 @@ function renderTable(orders) {
       <td class="col-money ${r.bo_valorizado > 0 ? 'bo-val-warn' : ''}">${fmtMoney(r.bo_valorizado)}</td>
       <td><button class="detail-btn" onclick="event.stopPropagation();openDetail('${esc(r.oc)}','${esc(r.cliente)}')">Ver →</button></td>
     </tr>
-  `).join("");
+  `;
+  }).join("");
 
   // Renderizar copia en sección OCs si existe
   const tbody2 = document.getElementById("ocTableBody2");
