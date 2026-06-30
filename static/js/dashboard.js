@@ -329,26 +329,19 @@ function _renderDashLossTree(visibleOrders) {
   const tbl = document.getElementById("dashLossTreeTable");
   if (!ctx) return;
 
-  // Filtrar OCs cerradas del mes actual de las visibles en tabla
-  const now = new Date();
-  const curY = now.getFullYear(), curM = now.getMonth();
-  const cerradasMTD = visibleOrders.filter(r => {
-    if ((r.estado || "").toUpperCase() !== "CERRADA") return false;
-    const d = parseDispatchDate(r.fecha_despacho);
-    return d && d.getFullYear() === curY && d.getMonth() === curM;
-  });
+  // Filtrar OCs abiertas/pendientes (no cerradas) visibles en la tabla
+  const abiertas = visibleOrders.filter(r => (r.estado || "").toUpperCase() !== "CERRADA");
 
   // Actualizar subtítulo
   const sub = document.getElementById("dashLossTreeSub");
   if (sub) {
-    const mes = now.toLocaleString("es-CL", { month: "long", year: "numeric" });
-    sub.textContent = cerradasMTD.length
-      ? `${cerradasMTD.length} OC${cerradasMTD.length !== 1 ? "s" : ""} cerradas · ${mes}`
-      : `sin OCs cerradas MTD`;
+    sub.textContent = abiertas.length
+      ? `${abiertas.length} OC${abiertas.length !== 1 ? "s" : ""} abierta${abiertas.length !== 1 ? "s" : ""}/pendiente${abiertas.length !== 1 ? "s" : ""}`
+      : `sin OCs abiertas`;
   }
 
   // Cruzar con BO detail para obtener SKUs con categoria_arbol
-  const ocIds = new Set(cerradasMTD.map(r => String(r.oc)));
+  const ocIds = new Set(abiertas.map(r => String(r.oc)));
   const boRows = (BO.rows || []).filter(r => ocIds.has(String(r.oc)));
 
   // Si BO.rows aún no cargó, cargarlo en background y reintentar
@@ -376,7 +369,7 @@ function _renderDashLossTree(visibleOrders) {
 
   if (!entries.length) {
     if (_DASH_LOSS.chart) { _DASH_LOSS.chart.destroy(); _DASH_LOSS.chart = null; }
-    if (tbl) tbl.innerHTML = `<div style="padding:24px;color:#aaa;font-size:12px;text-align:center">Sin back order en OCs cerradas MTD</div>`;
+    if (tbl) tbl.innerHTML = `<div style="padding:24px;color:#aaa;font-size:12px;text-align:center">Sin back order en OCs abiertas</div>`;
     return;
   }
 
