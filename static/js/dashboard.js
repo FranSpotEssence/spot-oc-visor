@@ -2267,11 +2267,18 @@ function renderTPTKpis(rows) {
   }
 
   const ventaTotal = rows.reduce((s, r) => s + (r.venta_mtd || 0), 0);
-  const withCumpl  = rows.filter(r => r.cumplimiento !== null);
-  const cumplProm  = withCumpl.length
-    ? withCumpl.reduce((s, r) => s + r.cumplimiento, 0) / withCumpl.length : null;
+
+  // Cumplimiento mes a nivel total de códigos: Σ venta MTD / Σ forecast mes
+  const withFcst   = rows.filter(r => r.fcst_mes !== null && r.fcst_mes > 0);
+  const ventaFcst  = withFcst.reduce((s, r) => s + (r.venta_mtd || 0), 0);
+  const fcstSum    = withFcst.reduce((s, r) => s + r.fcst_mes, 0);
+  const cumplProm  = fcstSum > 0 ? (ventaFcst / fcstSum) * 100 : null;
+
   const stockTotal = rows.reduce((s, r) => s + (r.stock || 0), 0);
-  const sinStock   = rows.filter(r => r.stock !== null && r.stock === 0).length;
+
+  // Sin stock: solo productos con stock 0 y forecast del mes en curso > 0
+  const sinStock   = rows.filter(r => r.stock === 0 && r.fcst_mes !== null && r.fcst_mes > 0).length;
+
   const dohBajo    = rows.filter(r => r.doh !== null && r.doh < 7).length;
 
   const cumplColor = cumplProm === null ? "s-neu"
