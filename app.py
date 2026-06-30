@@ -1230,11 +1230,15 @@ def _load_tracking_pt() -> dict:
             "fcst_mes":     fcst_mes,
         })
 
-    # FA A+B MTD: sum(venta) / sum(fcst mes) para productos A y B
-    ab_rows  = [r for r in rows if r["abc"] in ("A", "B") and r["fcst_mes"] and r["fcst_mes"] > 0]
-    fcst_sum = sum(r["fcst_mes"]  for r in ab_rows)
-    venta_sum= sum(r["venta_mtd"] for r in ab_rows if r["venta_mtd"] is not None)
-    fa_ab_mtd = round(venta_sum / fcst_sum * 100, 1) if fcst_sum else None
+    # FA A+B MTD: promedio del error a nivel código (SKU) para productos A y B
+    # FA por SKU = 1 - |Venta MTD - Forecast mes| / Forecast mes  (clip a 0 mínimo)
+    ab_rows = [r for r in rows if r["abc"] in ("A", "B") and r["fcst_mes"] and r["fcst_mes"] > 0]
+    fa_por_sku = []
+    for r in ab_rows:
+        venta = r["venta_mtd"] or 0
+        error = abs(venta - r["fcst_mes"]) / r["fcst_mes"]
+        fa_por_sku.append(max(0.0, 1 - error))
+    fa_ab_mtd = round(sum(fa_por_sku) / len(fa_por_sku) * 100, 1) if fa_por_sku else None
 
     categorias = sorted({r["categoria"] for r in rows if r["categoria"]})
     aromas     = sorted({r["aroma"]     for r in rows if r["aroma"]})
