@@ -1730,7 +1730,7 @@ function frChipBo(fr) {
 
 // ── SECCIONES ─────────────────────────────────────────────────
 function showSection(name) {
-  const sections = ["dashboard","fillrate","backorder","bodetalle","frhistorico","spotia","trackingpt"];
+  const sections = ["dashboard","fillrate","backorder","bodetalle","frhistorico","frmes","spotia","trackingpt"];
   sections.forEach(s => {
     const el = document.getElementById(`section${cap(s)}`);
     if (el) el.classList.toggle("d-none", s !== name);
@@ -1744,6 +1744,7 @@ function showSection(name) {
   if (name === "backorder")   initBoChart();
   if (name === "bodetalle")   loadBoDetail();
   if (name === "frhistorico") loadFrHistorico();
+  if (name === "frmes")       loadFrMes();
   if (name === "spotia")      initSpotia();
   if (name === "trackingpt")  loadTrackingPT();
 }
@@ -2203,6 +2204,152 @@ function _spotiaSetLoading(on) {
   } else {
     if (_spotiaTypingEl) { _spotiaTypingEl.remove(); _spotiaTypingEl = null; }
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FILL RATE MES
+// ═══════════════════════════════════════════════════════════════
+
+let _frMesData = null;
+
+async function loadFrMes() {
+  if (_frMesData) { _renderFrMes(_frMesData); return; }
+  try {
+    const res  = await fetch("/api/fr-mes");
+    const data = await res.json();
+    _frMesData = data;
+    _renderFrMes(data);
+  } catch (e) {
+    const tbody = document.getElementById("frMesCliBody");
+    if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted">Error al cargar datos.</td></tr>`;
+  }
+}
+
+function _renderFrMes(data) {
+  const kpis  = data.kpis  || {};
+  const clientes = data.por_cliente || [];
+
+  // Título mes
+  setEl("frMesLabel", kpis.mes_label ? `— ${kpis.mes_label}` : "");
+
+  // ── KPI Cards ──────────────────────────────────────────────────
+  const grid = document.getElementById("frMesKpiGrid");
+  if (grid) {
+    const frColor = kpis.fr_mtd_color || "red";
+    const frVal   = kpis.fr_mtd !== null && kpis.fr_mtd !== undefined ? `${kpis.fr_mtd}%` : "—";
+    grid.innerHTML = `
+      <div class="kpi-fr ${colorClass(frColor)}" style="grid-column:span 1">
+        <div>
+          <div class="fr-main-label">Fill Rate MTD</div>
+          <div class="fr-main-value">${frVal}</div>
+          <div class="fr-main-sub">OCs cerradas · ${kpis.mes_label || ""}</div>
+        </div>
+        <span class="fr-main-badge">${_frLabel(kpis.fr_mtd)}</span>
+      </div>
+      <div class="kpi-s s-neu">
+        <div>
+          <div class="kpi-s-lbl">Venta Facturada + Asignada MTD</div>
+          <div class="kpi-s-val kpi-s-val--sm">${fmtMoney(kpis.venta_facturada_mtd)}</div>
+          <div class="kpi-s-sub">valor facturado OCs cerradas</div>
+        </div>
+        <div class="kpi-s-dot"></div>
+      </div>
+      <div class="kpi-s s-red">
+        <div>
+          <div class="kpi-s-lbl">Venta Perdida MTD</div>
+          <div class="kpi-s-val kpi-s-val--sm">${fmtMoney(kpis.venta_perdida_mtd)}</div>
+          <div class="kpi-s-sub">BO clientes clave · ${kpis.mes_label || ""}</div>
+        </div>
+        <div class="kpi-s-dot"></div>
+      </div>
+      <div class="kpi-s s-neu">
+        <div>
+          <div class="kpi-s-lbl">OCs Despachadas</div>
+          <div class="kpi-s-val">${kpis.n_ocs_despachadas ?? "—"}</div>
+          <div class="kpi-s-sub">OCs cerradas en el mes</div>
+        </div>
+        <div class="kpi-s-dot"></div>
+      </div>
+    `;
+  }
+
+  // ── Tabla por cliente ──────────────────────────────────────────
+  const tbody = document.getElementById("frMesCliBody");
+  const countEl = document.getElementById("frMesCliCount");
+  if (countEl) countEl.textContent = clientes.length ? `${clientes.length} clientes` : "—";
+
+  if (!tbody) return;
+  if (!clientes.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted">Sin OCs cerradas en el mes en curso.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = "";
+  clientes.forEach((cli, idx) => {
+    const rowId = `frmes-oc-${idx}`;
+    // Fila resumen cliente
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><strong>${esc(cli.cliente)}</strong></td>
+      <td style="text-align:center">${cli.n_ocs}</td>
+      <td style="text-align:center">
+        <span class="fr-chip ${cli.fr_color}">${cli.fr}%</span>
+      </td>
+      <td style="text-align:right">${fmtMoney(cli.val_fac)}</td>
+      <td style="text-align:right">${fmtMoney(cli.val_no_fac)}</td>
+      <td style="text-align:center">
+        <button class="frm-ver-btn" onclick="toggleFrMesOcs('${rowId}', this)">Ver ▾</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+
+    // Fila detalle OCs (oculta por defecto)
+    const detRow = document.createElement("tr");
+    detRow.id = rowId;
+    detRow.className = "frmes-det-row d-none";
+    detRow.innerHTML = `
+      <td colspan="6" style="padding:0 0 0 24px;background:#f9fafb">
+        <table class="spot-table w-100" style="font-size:12px;margin:8px 0">
+          <thead>
+            <tr style="background:#f0f4ff">
+              <th>N° OC</th>
+              <th style="text-align:center">Fecha Despacho</th>
+              <th style="text-align:center">Fill Rate</th>
+              <th style="text-align:right">Valor Facturado</th>
+              <th style="text-align:right">Valor No Facturado</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${cli.ocs.map(o => `
+              <tr>
+                <td>${esc(o.oc)}</td>
+                <td style="text-align:center">${esc(o.fecha_despacho)}</td>
+                <td style="text-align:center"><span class="fr-chip ${o.fr_color}">${o.fr}%</span></td>
+                <td style="text-align:right">${fmtMoney(o.val_fac)}</td>
+                <td style="text-align:right">${fmtMoney(o.val_no_fac)}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </td>
+    `;
+    tbody.appendChild(detRow);
+  });
+}
+
+function toggleFrMesOcs(rowId, btn) {
+  const row = document.getElementById(rowId);
+  if (!row) return;
+  const hidden = row.classList.toggle("d-none");
+  btn.textContent = hidden ? "Ver ▾" : "Ocultar ▴";
+}
+
+function _frLabel(fr) {
+  if (fr === null || fr === undefined) return "SIN DATOS";
+  if (fr >= 95) return "ÓPTIMO";
+  if (fr >= 90) return "ATENCIÓN";
+  if (fr >= 80) return "RIESGO";
+  return "CRÍTICO";
 }
 
 // ═══════════════════════════════════════════════════════════════

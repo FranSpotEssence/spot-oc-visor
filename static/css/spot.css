@@ -913,6 +913,15 @@ body {
   color:#555;transition:.15s;white-space:nowrap;
 }
 .spotia-mode-btn:hover { background:#f0f4ff;border-color:#4f46e5;color:#4f46e5; }
+/* ── Fill Rate Mes ─────────────────────────────── */
+.frm-ver-btn {
+  background:#f0f4ff;border:1px solid #c7d2fe;border-radius:6px;
+  padding:4px 12px;font-size:11px;font-weight:600;cursor:pointer;
+  color:#4f46e5;transition:.15s;font-family:inherit;
+}
+.frm-ver-btn:hover { background:#e0e7ff;border-color:#818cf8; }
+.frmes-det-row td { border-top:none !important; }
+
 .spotia-clear-btn {
   background:none;border:1px solid #e0e0e0;border-radius:8px;
   padding:7px 10px;font-size:10px;font-family:inherit;font-weight:600;

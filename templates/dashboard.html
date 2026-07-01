@@ -52,6 +52,7 @@
     <div class="sb-group">
       <div class="sb-label">Logística</div>
       <a href="#" class="sb-item active" onclick="showSection('dashboard')">Fill Rate semana</a>
+      <a href="#" class="sb-item" onclick="showSection('frmes')">Fill Rate Mes</a>
       <!-- OCULTO TEMPORALMENTE — descomentar para reactivar
       <a href="#" class="sb-item" onclick="showSection('bodetalle')">
         Detalle Back Order
@@ -196,6 +197,56 @@
         </div>
       </div>
 
+    </section>
+
+    <!-- ══ SECCIÓN: FILL RATE MES ══ -->
+    <section id="sectionFrmes" class="d-none">
+      <div class="page-header">
+        <h1 class="page-title">Fill Rate Mes <span id="frMesLabel"></span></h1>
+        <p class="page-sub">OCs cerradas · Mes en curso · <span class="ph-pill">KAM · GERENCIA COMERCIAL · DIRECCIÓN</span></p>
+      </div>
+
+      <!-- Semáforo -->
+      <div class="legend-bar">
+        <span class="legend-title">Semáforo Fill Rate</span>
+        <div class="leg-i"><div class="leg-dot" style="background:#16a34a"></div>≥95% Óptimo</div>
+        <div class="leg-i"><div class="leg-dot" style="background:#eab308"></div>90–94.9% Atención</div>
+        <div class="leg-i"><div class="leg-dot" style="background:#ea580c"></div>80–89.9% Riesgo</div>
+        <div class="leg-i"><div class="leg-dot" style="background:#dc2626"></div>&lt;80% Crítico</div>
+      </div>
+
+      <!-- KPI CARDS -->
+      <div class="kpi-grid" id="frMesKpiGrid">
+        <div class="kpi-skeleton"></div>
+        <div class="kpi-skeleton"></div>
+        <div class="kpi-skeleton"></div>
+        <div class="kpi-skeleton"></div>
+      </div>
+
+      <!-- Tabla por cliente -->
+      <div class="panel" style="margin-top:16px">
+        <div class="panel-head">
+          <span class="panel-title">Detalle por Cliente — MTD OCs Cerradas</span>
+          <span class="panel-count" id="frMesCliCount">—</span>
+        </div>
+        <div class="table-responsive">
+          <table class="spot-table w-100" id="frMesCliTable">
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th style="text-align:center">N° OCs</th>
+                <th style="text-align:center">Fill Rate</th>
+                <th style="text-align:right">Venta Facturada</th>
+                <th style="text-align:right">Venta No Facturada</th>
+                <th style="text-align:center">Detalle</th>
+              </tr>
+            </thead>
+            <tbody id="frMesCliBody">
+              <tr><td colspan="6" class="text-center py-4 text-muted">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </section>
 
     <!-- ══ SECCIÓN: FILL RATE ══ -->
