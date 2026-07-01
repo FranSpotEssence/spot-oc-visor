@@ -9,6 +9,9 @@ from config import Config
 
 log = logging.getLogger(__name__)
 
+_MES_LARGO_KPI = {1:"ENERO",2:"FEBRERO",3:"MARZO",4:"ABRIL",5:"MAYO",6:"JUNIO",
+                  7:"JULIO",8:"AGOSTO",9:"SEPTIEMBRE",10:"OCTUBRE",11:"NOVIEMBRE",12:"DICIEMBRE"}
+
 
 def semaforo_fr(fr: float) -> str:
     if fr >= Config.FR_GREEN:  return "green"
@@ -108,7 +111,7 @@ def compute_kpis(df: pd.DataFrame) -> dict:
         "bo_por_producto": bo_por_producto,
         "fr_por_cliente":  fr_por_cliente,
 
-        "mes_label": today.strftime("%B %Y").upper(),
+        "mes_label": _MES_LARGO_KPI[today.month] + " " + str(today.year),
         "sol_mes":   int(sol_mes),
         "asig_mes":  int(asig_mes),
     }

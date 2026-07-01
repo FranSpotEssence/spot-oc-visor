@@ -17,6 +17,24 @@ from data_loader import refresh_data, get_df, get_pending_df, get_week_closed_df
 from kpi_calculator import compute_kpis, compute_oc_detail, fr_chip_class, semaforo_fr
 from spotia import build_context, build_light_context, ask_spotia
 
+# ── Helpers de fecha en español ──────────────────────────────────
+_MESES_LARGO = {1:"ENERO",2:"FEBRERO",3:"MARZO",4:"ABRIL",5:"MAYO",6:"JUNIO",
+                7:"JULIO",8:"AGOSTO",9:"SEPTIEMBRE",10:"OCTUBRE",11:"NOVIEMBRE",12:"DICIEMBRE"}
+_MESES_CORTO = {1:"ENE",2:"FEB",3:"MAR",4:"ABR",5:"MAY",6:"JUN",
+                7:"JUL",8:"AGO",9:"SEP",10:"OCT",11:"NOV",12:"DIC"}
+
+def _mes_largo(ts) -> str:
+    """'JULIO 2026'"""
+    return f"{_MESES_LARGO[ts.month]} {ts.year}"
+
+def _mes_corto(ts) -> str:
+    """'JUL 2026'"""
+    return f"{_MESES_CORTO[ts.month]} {ts.year}"
+
+def _dia_mes_corto(ts) -> str:
+    """'15 JUL'"""
+    return f"{ts.day:02d} {_MESES_CORTO[ts.month]}"
+
 _NAN_STRS = {"nan", "none", "null", "n/a", "na", "nd"}
 
 def _s(val) -> str:
@@ -369,7 +387,7 @@ def api_fr_historico():
                    .reset_index()[["_year", "_month"]].drop_duplicates())
     available_months = sorted([
         {"year": int(r["_year"]), "num": int(r["_month"]),
-         "label": f"{_cal.month_abbr[int(r['_month'])].upper()} {int(r['_year'])}"}
+         "label": f"{_MESES_CORTO[int(r['_month'])]} {int(r['_year'])}"}
         for _, r in avail_set.iterrows()
         if (int(r["_year"]), int(r["_month"])) in _last12
     ], key=lambda x: (x["year"], x["num"]))
@@ -383,8 +401,8 @@ def api_fr_historico():
         _iso = _wd.isocalendar()
         available_weeks.append({
             "key":         _wd.strftime("%Y-%m-%d"),
-            "label":       f"{_wd.strftime('%d %b').upper()} – {_we.strftime('%d %b').upper()}",
-            "label_short": _wd.strftime("%d %b").upper(),
+            "label":       f"{_dia_mes_corto(_wd)} – {_dia_mes_corto(_we)}",
+            "label_short": _dia_mes_corto(_wd),
             "iso_year":    _iso[0],
             "iso_week":    _iso[1],
         })
@@ -409,7 +427,7 @@ def api_fr_historico():
             fr  = round(float(r["un_asig"]) / sol * 100, 1) if sol > 0 else 0.0
             rows.append({
                 "key":    str(r["_ym"]),
-                "label":  r["_ym"].strftime("%b %Y").upper(),
+                "label":  f"{_MESES_CORTO[r['_ym'].month]} {r['_ym'].year}",
                 "year":   r["_ym"].year,
                 "month":  r["_ym"].month,
                 "fr":     fr,
@@ -443,8 +461,8 @@ def api_fr_historico():
         _wfr  = round(float(_wr["un_asig"]) / _wsol * 100, 1) if _wsol > 0 else 0.0
         weekly_all_list.append({
             "key":         _wk,
-            "label":       f"{_wmon.strftime('%d %b').upper()} – {_wend.strftime('%d %b').upper()}",
-            "label_short": _wmon.strftime("%d %b").upper(),
+            "label":       f"{_dia_mes_corto(_wmon)} – {_dia_mes_corto(_wend)}",
+            "label_short": _dia_mes_corto(_wmon),
             "fr":          _wfr,
             "un_sol":      int(_wr["un_sol"]),
             "un_asig":     int(_wr["un_asig"]),
@@ -503,8 +521,8 @@ def api_fr_historico():
         _wfr  = round(float(_wr["un_asig"]) / _wsol * 100, 1) if _wsol > 0 else 0.0
         weekly.append({
             "key":         _wk,
-            "label":       f"{_wmon.strftime('%d %b').upper()} – {_wend.strftime('%d %b').upper()}",
-            "label_short": _wmon.strftime("%d %b").upper(),
+            "label":       f"{_dia_mes_corto(_wmon)} – {_dia_mes_corto(_wend)}",
+            "label_short": _dia_mes_corto(_wmon),
             "fr":          _wfr,
             "un_sol":      int(_wr["un_sol"]),
             "un_asig":     int(_wr["un_asig"]),
@@ -665,7 +683,7 @@ def api_fr_historico():
             _prev_wmon    = _date.fromisoformat(_first_wkey) - _td(weeks=1)
             _prev_wkey    = _prev_wmon.strftime("%Y-%m-%d")
             _prev_wend    = _prev_wmon + _td(days=6)
-            _prev_label_w = f"{_prev_wmon.strftime('%d %b').upper()} – {_prev_wend.strftime('%d %b').upper()}"
+            _prev_label_w = f"{_dia_mes_corto(_prev_wmon)} – {_dia_mes_corto(_prev_wend)}"
             _prev_entry   = next((w for w in weekly_all_list if w["key"] == _prev_wkey), None)
             if _prev_entry:
                 _prev_fr_w = _prev_entry["fr"]
@@ -729,7 +747,7 @@ def api_fr_historico():
                 _sol = float(d_prev["un_solicitadas"].sum())
                 if _sol > 0:
                     prev_fr    = round(float(d_prev["un_asignadas"].sum()) / _sol * 100, 1)
-                    prev_label = f"{_cal.month_abbr[prev_mo].upper()} {prev_yr}"
+                    prev_label = f"{_MESES_CORTO[prev_mo]} {prev_yr}"
 
         variacion = round(fr_per - prev_fr, 1) if prev_fr is not None else None
 
@@ -1088,18 +1106,15 @@ def api_fr_mes():
 
     from kpi_calculator import semaforo_fr, fr_chip_class, _CLIENTES_VENTA_PERDIDA
 
-    _MESES_ES = {1:"ENERO",2:"FEBRERO",3:"MARZO",4:"ABRIL",5:"MAYO",6:"JUNIO",
-                 7:"JULIO",8:"AGOSTO",9:"SEPTIEMBRE",10:"OCTUBRE",11:"NOVIEMBRE",12:"DICIEMBRE"}
-
     today   = pd.Timestamp(date.today())
     mes_ini = today.replace(day=1)
     mes_fin = mes_ini + pd.offsets.MonthEnd(1)
-    mes_label = f"{_MESES_ES[today.month]} {today.year}"
+    mes_label = _mes_largo(today)
 
     # Mes anterior
     ant_ini = (mes_ini - pd.DateOffset(months=1)).replace(day=1)
     ant_fin = ant_ini + pd.offsets.MonthEnd(1)
-    ant_label = f"{_MESES_ES[ant_ini.month]} {ant_ini.year}"
+    ant_label = _mes_largo(ant_ini)
 
     dfw = df.dropna(subset=["fecha_despacho"]).copy()
     cerradas = dfw[dfw["estado"].str.upper() == "CERRADA"]
@@ -1327,12 +1342,12 @@ def _load_tracking_pt() -> dict:
 
     # Mes actual → forecast
     fcst_col   = next((c for c in date_cols if c.year == today.year and c.month == today.month), None)
-    fcst_label = today.strftime("%b %Y").upper() if fcst_col is not None else ""
+    fcst_label = _mes_corto(today) if fcst_col is not None else ""
 
     # Últimos 3 meses cerrados (anteriores al mes actual)
     past_cols = [c for c in date_cols if (c.year, c.month) < (today.year, today.month)]
     last3_cols = past_cols[-3:] if len(past_cols) >= 3 else past_cols
-    last3_labels = [c.strftime("%b %Y").upper() for c in last3_cols]
+    last3_labels = [_mes_corto(c) for c in last3_cols]
 
     rows = []
     for _, r in df.iterrows():
