@@ -1172,7 +1172,7 @@ def api_fr_mes():
             if coment in ("nan", "None"): coment = ""
             motivo = str(row.get("motivo_bo", "") or "").strip()
             if motivo in ("nan", "None"): motivo = ""
-            nota = coment or motivo
+            nota = (coment or motivo) if s_bo > 0 else ""
             skus.append({
                 "producto":  str(row.get("producto", "") or ""),
                 "ean":       str(row.get("ean_spot",  "") or "").replace(".0",""),
