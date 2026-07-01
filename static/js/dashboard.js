@@ -2345,21 +2345,19 @@ function _frmRenderKpis(kpis) {
   const frVal  = kpis.fr_mtd  != null ? `${kpis.fr_mtd}%`  : "—";
   const frAnt  = kpis.fr_ant  != null ? `${kpis.fr_ant}%`  : "—";
   const varNum = kpis.variacion;
-  const varHtml = varNum != null
-    ? `<span class="frm-var ${varNum >= 0 ? "frm-var-up" : "frm-var-dn"}">
+  const varColor = varNum == null ? "neu" : (varNum >= 0 ? "green" : "red");
+  const varValHtml = varNum != null
+    ? `<span class="frm-var ${varNum >= 0 ? "frm-var-up" : "frm-var-dn"}" style="font-size:22px;font-weight:700;background:none;padding:0">
          ${varNum >= 0 ? "▲" : "▼"} ${Math.abs(varNum).toFixed(1)} pp
        </span>`
-    : "";
+    : `<span style="font-size:22px;font-weight:700;color:#bbb">—</span>`;
 
   grid.innerHTML = `
     <div class="kpi-fr ${colorClass(kpis.fr_mtd_color || "red")}" style="grid-column:span 1">
       <div>
         <div class="fr-main-label">Fill Rate — ${kpis.mes_label || "Mes Actual"}</div>
         <div class="fr-main-value">${frVal}</div>
-        <div class="fr-main-sub" style="display:flex;align-items:center;gap:8px">
-          OCs cerradas
-          ${varHtml}
-        </div>
+        <div class="fr-main-sub">OCs cerradas</div>
       </div>
       <span class="fr-main-badge">${_frLabel(kpis.fr_mtd)}</span>
     </div>
@@ -2368,6 +2366,14 @@ function _frmRenderKpis(kpis) {
         <div class="kpi-s-lbl">Fill Rate — ${kpis.ant_label || "Mes Anterior"}</div>
         <div class="kpi-s-val">${frAnt}</div>
         <div class="kpi-s-sub">OCs cerradas mes anterior</div>
+      </div>
+      <div class="kpi-s-dot"></div>
+    </div>
+    <div class="kpi-s s-${varColor}">
+      <div>
+        <div class="kpi-s-lbl">Variación vs mes anterior</div>
+        <div class="kpi-s-val">${varValHtml}</div>
+        <div class="kpi-s-sub">${kpis.mes_label || ""} vs ${kpis.ant_label || ""}</div>
       </div>
       <div class="kpi-s-dot"></div>
     </div>
