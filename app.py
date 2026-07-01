@@ -1081,105 +1081,126 @@ def api_export_csv():
 @app.route("/api/fr-mes")
 @_login_required
 def api_fr_mes():
-    """KPIs y detalle por cliente — Fill Rate MTD con OCs cerradas del mes en curso."""
+    """KPIs y OCs cerradas MTD con detalle SKU — Fill Rate Mes."""
     df = get_df()
     if df is None or df.empty:
-        return jsonify({"kpis": {}, "por_cliente": []})
+        return jsonify({"kpis": {}, "clientes": [], "ocs": []})
 
     from kpi_calculator import semaforo_fr, fr_chip_class, _CLIENTES_VENTA_PERDIDA
+
+    _MESES_ES = {1:"ENERO",2:"FEBRERO",3:"MARZO",4:"ABRIL",5:"MAYO",6:"JUNIO",
+                 7:"JULIO",8:"AGOSTO",9:"SEPTIEMBRE",10:"OCTUBRE",11:"NOVIEMBRE",12:"DICIEMBRE"}
 
     today   = pd.Timestamp(date.today())
     mes_ini = today.replace(day=1)
     mes_fin = mes_ini + pd.offsets.MonthEnd(1)
+    mes_label = f"{_MESES_ES[today.month]} {today.year}"
 
-    # Solo OCs cerradas del mes en curso (por fecha_despacho)
+    # Mes anterior
+    ant_ini = (mes_ini - pd.DateOffset(months=1)).replace(day=1)
+    ant_fin = ant_ini + pd.offsets.MonthEnd(1)
+    ant_label = f"{_MESES_ES[ant_ini.month]} {ant_ini.year}"
+
     dfw = df.dropna(subset=["fecha_despacho"]).copy()
-    df_mes = dfw[
-        (dfw["fecha_despacho"] >= mes_ini) &
-        (dfw["fecha_despacho"] <= mes_fin) &
-        (dfw["estado"].str.upper() == "CERRADA")
-    ]
+    cerradas = dfw[dfw["estado"].str.upper() == "CERRADA"]
 
-    mes_label = today.strftime("%B %Y").upper()
+    df_mes = cerradas[(cerradas["fecha_despacho"] >= mes_ini) & (cerradas["fecha_despacho"] <= mes_fin)]
+    df_ant = cerradas[(cerradas["fecha_despacho"] >= ant_ini) & (cerradas["fecha_despacho"] <= ant_fin)]
+
+    clientes_list = sorted(df_mes["cliente"].dropna().unique().tolist()) if not df_mes.empty else []
+
+    def _fr_cerradas(df_scope):
+        sol  = float(df_scope["un_solicitadas"].sum())
+        asig = float(df_scope["un_asignadas"].sum())
+        return round(asig / sol * 100, 1) if sol > 0 else None
+
+    # FR mes anterior (cerradas)
+    fr_ant = _fr_cerradas(df_ant)
 
     if df_mes.empty:
         return jsonify({
-            "kpis": {
-                "fr_mtd": None, "fr_mtd_color": "red",
-                "venta_facturada_mtd": 0, "venta_perdida_mtd": 0,
-                "n_ocs_despachadas": 0, "mes_label": mes_label,
-            },
-            "por_cliente": [],
+            "kpis": {"fr_mtd": None, "fr_mtd_color": "red",
+                     "venta_facturada_mtd": 0, "venta_perdida_mtd": 0,
+                     "n_ocs_despachadas": 0, "mes_label": mes_label,
+                     "fr_ant": fr_ant, "ant_label": ant_label, "variacion": None},
+            "clientes": clientes_list,
+            "ocs": [],
         })
 
-    # ── KPIs globales ──────────────────────────────────────────────
-    sol_tot  = float(df_mes["un_solicitadas"].sum())
-    asig_tot = float(df_mes["un_asignadas"].sum())
-    fr_mtd   = round(asig_tot / sol_tot * 100, 1) if sol_tot > 0 else None
+    def _build_kpis(df_scope):
+        sol  = float(df_scope["un_solicitadas"].sum())
+        asig = float(df_scope["un_asignadas"].sum())
+        fr   = round(asig / sol * 100, 1) if sol > 0 else None
+        fac  = float(df_scope["valor_facturado"].sum())
+        cl   = df_scope["cliente"].str.lower().fillna("")
+        mask = cl.apply(lambda c: any(kw in c for kw in _CLIENTES_VENTA_PERDIDA))
+        perdida = float(df_scope.loc[mask, "bo_valorizado"].sum())
+        variacion = round(fr - fr_ant, 1) if (fr is not None and fr_ant is not None) else None
+        return {
+            "fr_mtd":              fr,
+            "fr_mtd_color":        semaforo_fr(fr) if fr is not None else "red",
+            "venta_facturada_mtd": round(fac, 0),
+            "venta_perdida_mtd":   round(perdida, 0),
+            "n_ocs_despachadas":   int(df_scope["oc"].nunique()),
+            "mes_label":           mes_label,
+            "fr_ant":              fr_ant,
+            "ant_label":           ant_label,
+            "variacion":           variacion,
+        }
 
-    venta_facturada = float(df_mes["valor_facturado"].sum())
+    kpis = _build_kpis(df_mes)
 
-    # Venta perdida MTD: BO valorizado de clientes clave (mismo criterio que dashboard)
-    clientes_lower = df_mes["cliente"].str.lower().fillna("")
-    mask_clave = clientes_lower.apply(
-        lambda c: any(kw in c for kw in _CLIENTES_VENTA_PERDIDA)
-    )
-    venta_perdida = float(df_mes.loc[mask_clave, "bo_valorizado"].sum())
+    # ── OCs con SKU detail ─────────────────────────────────────────
+    ocs = []
+    for (oc_id, cliente), grp in df_mes.groupby(["oc", "cliente"]):
+        o_sol   = float(grp["un_solicitadas"].sum())
+        o_asig  = float(grp["un_asignadas"].sum())
+        o_fr    = round(o_asig / o_sol * 100, 1) if o_sol > 0 else 100.0
+        o_fac   = float(grp["valor_facturado"].sum())
+        o_nofac = float(grp["bo_valorizado"].sum())
+        fd      = grp["fecha_despacho"].dropna()
+        fd_str  = fd.iloc[0].strftime("%d/%m/%Y") if not fd.empty else "—"
+        fd_sort = fd.iloc[0].strftime("%Y%m%d") if not fd.empty else "99999999"
 
-    n_ocs = int(df_mes["oc"].nunique())
-
-    kpis = {
-        "fr_mtd":             fr_mtd,
-        "fr_mtd_color":       semaforo_fr(fr_mtd) if fr_mtd is not None else "red",
-        "venta_facturada_mtd": round(venta_facturada, 0),
-        "venta_perdida_mtd":  round(venta_perdida, 0),
-        "n_ocs_despachadas":  n_ocs,
-        "mes_label":          mes_label,
-    }
-
-    # ── Detalle por cliente ────────────────────────────────────────
-    por_cliente = []
-    for cliente, grp in df_mes.groupby("cliente"):
-        c_sol  = float(grp["un_solicitadas"].sum())
-        c_asig = float(grp["un_asignadas"].sum())
-        c_fr   = round(c_asig / c_sol * 100, 1) if c_sol > 0 else 100.0
-        c_fac  = float(grp["valor_facturado"].sum())
-        c_nofac = float(grp["bo_valorizado"].sum())
-        c_nocs  = int(grp["oc"].nunique())
-
-        # Detalle OC dentro de este cliente
-        ocs_det = []
-        for oc_id, oc_grp in grp.groupby("oc"):
-            o_sol  = float(oc_grp["un_solicitadas"].sum())
-            o_asig = float(oc_grp["un_asignadas"].sum())
-            o_fr   = round(o_asig / o_sol * 100, 1) if o_sol > 0 else 100.0
-            o_fac  = float(oc_grp["valor_facturado"].sum())
-            o_nofac = float(oc_grp["bo_valorizado"].sum())
-            fd = oc_grp["fecha_despacho"].dropna()
-            fd_str = fd.iloc[0].strftime("%d/%m/%Y") if not fd.empty else "—"
-            ocs_det.append({
-                "oc":           str(oc_id),
-                "fecha_despacho": fd_str,
-                "fr":           o_fr,
-                "fr_color":     fr_chip_class(o_fr),
-                "val_fac":      round(o_fac, 0),
-                "val_no_fac":   round(o_nofac, 0),
+        skus = []
+        for _, row in grp.iterrows():
+            s_sol  = int(row.get("un_solicitadas", 0) or 0)
+            s_asig = int(row.get("un_asignadas",   0) or 0)
+            s_bo   = int(row.get("bo_un",          0) or 0)
+            s_fr   = round(s_asig / s_sol * 100, 1) if s_sol > 0 else 100.0
+            coment = str(row.get("comentarios", "") or "").strip()
+            if coment in ("nan", "None"): coment = ""
+            motivo = str(row.get("motivo_bo", "") or "").strip()
+            if motivo in ("nan", "None"): motivo = ""
+            nota = coment or motivo
+            skus.append({
+                "producto":  str(row.get("producto", "") or ""),
+                "ean":       str(row.get("ean_spot",  "") or "").replace(".0",""),
+                "categoria": str(row.get("categoria", "") or ""),
+                "sol":       s_sol,
+                "asig":      s_asig,
+                "bo":        s_bo,
+                "fr":        s_fr,
+                "fr_color":  fr_chip_class(s_fr),
+                "comentario": nota,
             })
-        ocs_det.sort(key=lambda x: x["fecha_despacho"])
 
-        por_cliente.append({
-            "cliente":   str(cliente),
-            "n_ocs":     c_nocs,
-            "fr":        c_fr,
-            "fr_color":  fr_chip_class(c_fr),
-            "val_fac":   round(c_fac, 0),
-            "val_no_fac": round(c_nofac, 0),
-            "ocs":       ocs_det,
+        ocs.append({
+            "oc":           str(oc_id),
+            "cliente":      str(cliente),
+            "fecha_despacho": fd_str,
+            "_fd_sort":     fd_sort,
+            "fr":           o_fr,
+            "fr_color":     fr_chip_class(o_fr),
+            "val_fac":      round(o_fac, 0),
+            "val_no_fac":   round(o_nofac, 0),
+            "skus":         skus,
         })
 
-    por_cliente.sort(key=lambda x: x["fr"])
+    ocs.sort(key=lambda x: x["_fd_sort"])
+    for o in ocs: del o["_fd_sort"]
 
-    return jsonify({"kpis": kpis, "por_cliente": por_cliente})
+    return jsonify({"kpis": kpis, "clientes": clientes_list, "ocs": ocs})
 
 
 @app.route("/api/spotia", methods=["POST"])

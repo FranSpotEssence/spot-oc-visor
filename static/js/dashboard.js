@@ -2210,138 +2210,267 @@ function _spotiaSetLoading(on) {
 // FILL RATE MES
 // ═══════════════════════════════════════════════════════════════
 
-let _frMesData = null;
+const FRM = { data: null, selected: new Set() }; // selected = clientes seleccionados (vacío = todos)
 
 async function loadFrMes() {
-  if (_frMesData) { _renderFrMes(_frMesData); return; }
+  if (FRM.data) { _frmApplyFilter(); return; }
   try {
     const res  = await fetch("/api/fr-mes");
-    const data = await res.json();
-    _frMesData = data;
-    _renderFrMes(data);
+    FRM.data   = await res.json();
+    _frmBuildMultiSelect(FRM.data.clientes || []);
+    _frmApplyFilter();
   } catch (e) {
-    const tbody = document.getElementById("frMesCliBody");
-    if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted">Error al cargar datos.</td></tr>`;
+    const tbody = document.getElementById("frMesOcBody");
+    if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted">Error al cargar datos.</td></tr>`;
   }
 }
 
-function _renderFrMes(data) {
-  const kpis  = data.kpis  || {};
-  const clientes = data.por_cliente || [];
+// ── Multi-select helpers ───────────────────────────────────────
+function _frmBuildMultiSelect(clientes) {
+  const cont = document.getElementById("frmMsOptions");
+  if (!cont) return;
+  cont.innerHTML = clientes.map(c => `
+    <label class="frm-ms-opt">
+      <input type="checkbox" value="${esc(c)}" onchange="frmMsChange()">
+      <span>${esc(c)}</span>
+    </label>
+  `).join("");
+}
 
-  // Título mes
-  setEl("frMesLabel", kpis.mes_label ? `— ${kpis.mes_label}` : "");
+function frmMsToggle() {
+  const dd = document.getElementById("frmMsDropdown");
+  if (dd) dd.classList.toggle("d-none");
+  // Cerrar al hacer click fuera
+  setTimeout(() => {
+    document.addEventListener("click", _frmMsOutside, { once: true });
+  }, 10);
+}
+function _frmMsOutside(e) {
+  const wrap = document.getElementById("frmMsWrap");
+  if (wrap && !wrap.contains(e.target)) {
+    const dd = document.getElementById("frmMsDropdown");
+    if (dd) dd.classList.add("d-none");
+  }
+}
 
-  // ── KPI Cards ──────────────────────────────────────────────────
-  const grid = document.getElementById("frMesKpiGrid");
-  if (grid) {
-    const frColor = kpis.fr_mtd_color || "red";
-    const frVal   = kpis.fr_mtd !== null && kpis.fr_mtd !== undefined ? `${kpis.fr_mtd}%` : "—";
-    grid.innerHTML = `
-      <div class="kpi-fr ${colorClass(frColor)}" style="grid-column:span 1">
-        <div>
-          <div class="fr-main-label">Fill Rate MTD</div>
-          <div class="fr-main-value">${frVal}</div>
-          <div class="fr-main-sub">OCs cerradas · ${kpis.mes_label || ""}</div>
-        </div>
-        <span class="fr-main-badge">${_frLabel(kpis.fr_mtd)}</span>
-      </div>
-      <div class="kpi-s s-neu">
-        <div>
-          <div class="kpi-s-lbl">Venta Facturada + Asignada MTD</div>
-          <div class="kpi-s-val kpi-s-val--sm">${fmtMoney(kpis.venta_facturada_mtd)}</div>
-          <div class="kpi-s-sub">valor facturado OCs cerradas</div>
-        </div>
-        <div class="kpi-s-dot"></div>
-      </div>
-      <div class="kpi-s s-red">
-        <div>
-          <div class="kpi-s-lbl">Venta Perdida MTD</div>
-          <div class="kpi-s-val kpi-s-val--sm">${fmtMoney(kpis.venta_perdida_mtd)}</div>
-          <div class="kpi-s-sub">BO clientes clave · ${kpis.mes_label || ""}</div>
-        </div>
-        <div class="kpi-s-dot"></div>
-      </div>
-      <div class="kpi-s s-neu">
-        <div>
-          <div class="kpi-s-lbl">OCs Despachadas</div>
-          <div class="kpi-s-val">${kpis.n_ocs_despachadas ?? "—"}</div>
-          <div class="kpi-s-sub">OCs cerradas en el mes</div>
-        </div>
-        <div class="kpi-s-dot"></div>
-      </div>
-    `;
+function frmMsToggleAll(cb) {
+  document.querySelectorAll("#frmMsOptions input[type=checkbox]").forEach(el => { el.checked = cb.checked; });
+  frmMsChange();
+}
+
+function frmMsChange() {
+  const checked = [...document.querySelectorAll("#frmMsOptions input:checked")].map(el => el.value);
+  const allCb   = document.getElementById("frmMsAll");
+  const total   = document.querySelectorAll("#frmMsOptions input").length;
+  if (allCb) allCb.checked = checked.length === total;
+  FRM.selected = checked.length === total ? new Set() : new Set(checked);
+  _frmUpdateChips(checked, total);
+  _frmApplyFilter();
+}
+
+function _frmUpdateChips(checked, total) {
+  const chips   = document.getElementById("frmMsChips");
+  const clearBtn = document.getElementById("frmMsClearBtn");
+  const label   = document.getElementById("frmMsLabel");
+  const isAll   = checked.length === total || checked.length === 0;
+
+  if (label) label.textContent = isAll ? "Todos los clientes" : `${checked.length} cliente${checked.length > 1 ? "s" : ""}`;
+  if (clearBtn) clearBtn.style.display = isAll ? "none" : "";
+  if (!chips) return;
+  chips.innerHTML = isAll ? "" : checked.map(c =>
+    `<span class="frm-chip">${esc(c)}<button onclick="frmMsRemove('${esc(c)}')" title="Quitar">×</button></span>`
+  ).join("");
+}
+
+function frmMsRemove(cliente) {
+  const cb = document.querySelector(`#frmMsOptions input[value="${cliente}"]`);
+  if (cb) { cb.checked = false; frmMsChange(); }
+}
+
+function frmMsClear() {
+  document.querySelectorAll("#frmMsOptions input").forEach(el => el.checked = true);
+  const allCb = document.getElementById("frmMsAll");
+  if (allCb) allCb.checked = true;
+  FRM.selected = new Set();
+  _frmUpdateChips([], 0);
+  _frmApplyFilter();
+}
+
+// ── Filtrar y renderizar ───────────────────────────────────────
+function _frmApplyFilter() {
+  const data = FRM.data;
+  if (!data) return;
+
+  const allOcs = data.ocs || [];
+  const ocs = FRM.selected.size === 0
+    ? allOcs
+    : allOcs.filter(o => FRM.selected.has(o.cliente));
+
+  // Recalcular KPIs sobre el subconjunto filtrado
+  const kpisBase = data.kpis || {};
+  let kpis = { ...kpisBase };
+  if (FRM.selected.size > 0) {
+    const sol  = ocs.reduce((a, o) => a + o.skus.reduce((b, s) => b + s.sol,  0), 0);
+    const asig = ocs.reduce((a, o) => a + o.skus.reduce((b, s) => b + s.asig, 0), 0);
+    const fac  = ocs.reduce((a, o) => a + o.val_fac, 0);
+    // Venta perdida: OCs de clientes clave dentro del filtro
+    const CLAVE = ["sodimac","walmart","jumbo","easy","tottus","mercado libre","aramco","shell","bestias"];
+    const perdida = ocs.filter(o => CLAVE.some(kw => o.cliente.toLowerCase().includes(kw)))
+                       .reduce((a, o) => a + o.val_no_fac, 0);
+    kpis = {
+      ...kpisBase,
+      fr_mtd:              sol > 0 ? Math.round(asig / sol * 1000) / 10 : null,
+      fr_mtd_color:        sol > 0 ? _frmColor(asig/sol*100) : "red",
+      venta_facturada_mtd: Math.round(fac),
+      venta_perdida_mtd:   Math.round(perdida),
+      n_ocs_despachadas:   ocs.length,
+    };
   }
 
-  // ── Tabla por cliente ──────────────────────────────────────────
-  const tbody = document.getElementById("frMesCliBody");
-  const countEl = document.getElementById("frMesCliCount");
-  if (countEl) countEl.textContent = clientes.length ? `${clientes.length} clientes` : "—";
+  setEl("frMesLabel", kpis.mes_label ? `— ${kpis.mes_label}` : "");
+  _frmRenderKpis(kpis);
+  _frmRenderTable(ocs);
+}
 
+function _frmColor(fr) {
+  if (fr >= 95) return "green";
+  if (fr >= 90) return "yellow";
+  if (fr >= 80) return "orange";
+  return "red";
+}
+
+function _frmRenderKpis(kpis) {
+  const grid = document.getElementById("frMesKpiGrid");
+  if (!grid) return;
+  const frVal  = kpis.fr_mtd  != null ? `${kpis.fr_mtd}%`  : "—";
+  const frAnt  = kpis.fr_ant  != null ? `${kpis.fr_ant}%`  : "—";
+  const varNum = kpis.variacion;
+  const varHtml = varNum != null
+    ? `<span class="frm-var ${varNum >= 0 ? "frm-var-up" : "frm-var-dn"}">
+         ${varNum >= 0 ? "▲" : "▼"} ${Math.abs(varNum).toFixed(1)} pp
+       </span>`
+    : "";
+
+  grid.innerHTML = `
+    <div class="kpi-fr ${colorClass(kpis.fr_mtd_color || "red")}" style="grid-column:span 1">
+      <div>
+        <div class="fr-main-label">Fill Rate — ${kpis.mes_label || "Mes Actual"}</div>
+        <div class="fr-main-value">${frVal}</div>
+        <div class="fr-main-sub" style="display:flex;align-items:center;gap:8px">
+          OCs cerradas
+          ${varHtml}
+        </div>
+      </div>
+      <span class="fr-main-badge">${_frLabel(kpis.fr_mtd)}</span>
+    </div>
+    <div class="kpi-s s-neu">
+      <div>
+        <div class="kpi-s-lbl">Fill Rate — ${kpis.ant_label || "Mes Anterior"}</div>
+        <div class="kpi-s-val">${frAnt}</div>
+        <div class="kpi-s-sub">OCs cerradas mes anterior</div>
+      </div>
+      <div class="kpi-s-dot"></div>
+    </div>
+    <div class="kpi-s s-neu">
+      <div>
+        <div class="kpi-s-lbl">Venta Facturada + Asignada MTD</div>
+        <div class="kpi-s-val kpi-s-val--sm">${fmtMoney(kpis.venta_facturada_mtd)}</div>
+        <div class="kpi-s-sub">valor facturado OCs cerradas</div>
+      </div>
+      <div class="kpi-s-dot"></div>
+    </div>
+    <div class="kpi-s s-red">
+      <div>
+        <div class="kpi-s-lbl">Venta Perdida MTD</div>
+        <div class="kpi-s-val kpi-s-val--sm">${fmtMoney(kpis.venta_perdida_mtd)}</div>
+        <div class="kpi-s-sub">BO clientes clave</div>
+      </div>
+      <div class="kpi-s-dot"></div>
+    </div>
+    <div class="kpi-s s-neu">
+      <div>
+        <div class="kpi-s-lbl">OCs Despachadas</div>
+        <div class="kpi-s-val">${kpis.n_ocs_despachadas ?? "—"}</div>
+        <div class="kpi-s-sub">OCs cerradas en el mes</div>
+      </div>
+      <div class="kpi-s-dot"></div>
+    </div>
+  `;
+}
+
+function _frmRenderTable(ocs) {
+  const tbody  = document.getElementById("frMesOcBody");
+  const countEl = document.getElementById("frMesOcCount");
+  if (countEl) countEl.textContent = ocs.length ? `${ocs.length} OCs` : "—";
   if (!tbody) return;
-  if (!clientes.length) {
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted">Sin OCs cerradas en el mes en curso.</td></tr>`;
+
+  if (!ocs.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted">Sin OCs cerradas${FRM.selected.size ? " para los clientes seleccionados" : " en el mes en curso"}.</td></tr>`;
     return;
   }
 
   tbody.innerHTML = "";
-  clientes.forEach((cli, idx) => {
-    const rowId = `frmes-oc-${idx}`;
-    // Fila resumen cliente
+  ocs.forEach((oc, idx) => {
+    const detId = `frmes-sku-${idx}`;
+    const hasBO = oc.skus.some(s => s.bo > 0);
+
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td><strong>${esc(cli.cliente)}</strong></td>
-      <td style="text-align:center">${cli.n_ocs}</td>
+      <td>${esc(oc.cliente)}</td>
+      <td><strong>${esc(oc.oc)}</strong></td>
+      <td style="text-align:center">${esc(oc.fecha_despacho)}</td>
+      <td style="text-align:center"><span class="fr-chip ${oc.fr_color}">${oc.fr}%</span></td>
+      <td style="text-align:right">${fmtMoney(oc.val_fac)}</td>
+      <td style="text-align:right">${fmtMoney(oc.val_no_fac)}</td>
       <td style="text-align:center">
-        <span class="fr-chip ${cli.fr_color}">${cli.fr}%</span>
-      </td>
-      <td style="text-align:right">${fmtMoney(cli.val_fac)}</td>
-      <td style="text-align:right">${fmtMoney(cli.val_no_fac)}</td>
-      <td style="text-align:center">
-        <button class="frm-ver-btn" onclick="toggleFrMesOcs('${rowId}', this)">Ver ▾</button>
+        <button class="frm-ver-btn" onclick="frmToggleSku('${detId}',this)">Ver SKU ▾</button>
       </td>
     `;
     tbody.appendChild(tr);
 
-    // Fila detalle OCs (oculta por defecto)
-    const detRow = document.createElement("tr");
-    detRow.id = rowId;
-    detRow.className = "frmes-det-row d-none";
-    detRow.innerHTML = `
-      <td colspan="6" style="padding:0 0 0 24px;background:#f9fafb">
-        <table class="spot-table w-100" style="font-size:12px;margin:8px 0">
+    // Fila SKU detalle
+    const skuRow = document.createElement("tr");
+    skuRow.id = detId;
+    skuRow.className = "frmes-det-row d-none";
+    skuRow.innerHTML = `
+      <td colspan="7" style="padding:0 0 6px 28px;background:#f9fafb">
+        <table class="spot-table w-100" style="font-size:12px;margin:6px 0">
           <thead>
             <tr style="background:#f0f4ff">
-              <th>N° OC</th>
-              <th style="text-align:center">Fecha Despacho</th>
-              <th style="text-align:center">Fill Rate</th>
-              <th style="text-align:right">Valor Facturado</th>
-              <th style="text-align:right">Valor No Facturado</th>
+              <th>Producto</th>
+              <th style="text-align:center">Categoría</th>
+              <th style="text-align:center">UN Sol.</th>
+              <th style="text-align:center">UN Asig.</th>
+              <th style="text-align:center">BO</th>
+              <th style="text-align:center">FR</th>
+              <th>Comentario / Motivo BO</th>
             </tr>
           </thead>
           <tbody>
-            ${cli.ocs.map(o => `
-              <tr>
-                <td>${esc(o.oc)}</td>
-                <td style="text-align:center">${esc(o.fecha_despacho)}</td>
-                <td style="text-align:center"><span class="fr-chip ${o.fr_color}">${o.fr}%</span></td>
-                <td style="text-align:right">${fmtMoney(o.val_fac)}</td>
-                <td style="text-align:right">${fmtMoney(o.val_no_fac)}</td>
+            ${oc.skus.map(s => `
+              <tr${s.bo > 0 ? ' style="background:#fff8f8"' : ''}>
+                <td>${esc(s.producto)}</td>
+                <td style="text-align:center">${esc(s.categoria)}</td>
+                <td style="text-align:center">${s.sol}</td>
+                <td style="text-align:center">${s.asig}</td>
+                <td style="text-align:center">${s.bo > 0 ? `<strong style="color:#dc2626">${s.bo}</strong>` : '0'}</td>
+                <td style="text-align:center"><span class="fr-chip ${s.fr_color}" style="font-size:10px;padding:2px 7px">${s.fr}%</span></td>
+                <td style="color:#555">${s.comentario ? `<span class="spotia-alert" style="font-size:11px">⚠ ${esc(s.comentario)}</span>` : '<span style="color:#bbb">—</span>'}</td>
               </tr>
             `).join("")}
           </tbody>
         </table>
       </td>
     `;
-    tbody.appendChild(detRow);
+    tbody.appendChild(skuRow);
   });
 }
 
-function toggleFrMesOcs(rowId, btn) {
-  const row = document.getElementById(rowId);
+function frmToggleSku(id, btn) {
+  const row = document.getElementById(id);
   if (!row) return;
   const hidden = row.classList.toggle("d-none");
-  btn.textContent = hidden ? "Ver ▾" : "Ocultar ▴";
+  btn.textContent = hidden ? "Ver SKU ▾" : "Ocultar ▴";
 }
 
 function _frLabel(fr) {
