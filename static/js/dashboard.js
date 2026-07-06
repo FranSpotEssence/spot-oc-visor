@@ -155,7 +155,7 @@ function renderKPIs(d) {
       <div>
         <div class="kpi-s-lbl">Pendiente de Facturar</div>
         <div class="kpi-s-val kpi-s-val--sm">${fmtMoney(d.pend_facturar)}</div>
-        <div class="kpi-s-sub">OCs abiertas · clientes clave</div>
+        <div class="kpi-s-sub">OCs abiertas · clientes Retail</div>
       </div>
       <div class="kpi-s-dot"></div>
     </div>
