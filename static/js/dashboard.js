@@ -2473,7 +2473,6 @@ function _frmRenderTable(ocs) {
       <td style="text-align:right">${fmtMoney(oc.val_no_fac)}</td>
       <td style="text-align:center">
         <button class="frm-ver-btn" onclick="event.stopPropagation();_frmOpenModal(${JSON.stringify(oc).replace(/'/g,"&#39;")})">Ver SKU ▾</button>
-        <button class="frm-ver-btn" style="margin-left:6px" onclick="event.stopPropagation();_exportSkuXlsx(${JSON.stringify(oc).replace(/'/g,"&#39;")})">↓ Excel</button>
       </td>
     `;
     tbody.appendChild(tr);
