@@ -15,7 +15,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from config import Config
 from data_loader import refresh_data, get_df, get_pending_df, get_week_closed_df, get_cache, get_bo_detail_df
 from kpi_calculator import compute_kpis, compute_oc_detail, fr_chip_class, semaforo_fr
-from spotia import build_context, build_light_context, ask_spotia
+from spotia import build_context, build_light_context, build_stock_context, ask_spotia
 
 # ── Helpers de fecha en español ──────────────────────────────────
 _MESES_LARGO = {1:"ENERO",2:"FEBRERO",3:"MARZO",4:"ABRIL",5:"MAYO",6:"JUNIO",
@@ -1251,6 +1251,16 @@ def api_spotia():
         context = build_light_context(df, cliente_ctx)
     else:
         context = build_context(df, cliente_ctx)
+
+    # Agregar contexto de stock del Tracking Diario PT
+    try:
+        tpt_data = _load_tracking_pt()
+        stock_ctx = build_stock_context(tpt_data.get("rows", []))
+        if stock_ctx:
+            context = context + "\n\n" + stock_ctx
+    except Exception as e:
+        log.warning(f"SpotIA: no se pudo cargar contexto de stock: {e}")
+
     answer = ask_spotia(question, context, mode, cliente_ctx)
     return jsonify({"answer": answer})
 

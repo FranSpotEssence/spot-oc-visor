@@ -393,6 +393,71 @@ def build_light_context(df: pd.DataFrame, cliente_ctx: str = "") -> str:
     return "\n".join(lines)
 
 
+# ── Contexto de Stock (Tracking Diario PT) ───────────────────────
+
+def build_stock_context(tpt_rows: list) -> str:
+    """
+    Genera sección de contexto con datos de stock del Tracking Diario PT.
+    Incluye resumen global, sin stock, DOH crítico y detalle por producto.
+    """
+    if not tpt_rows:
+        return ""
+
+    lines = []
+    lines.append("=== STOCK PRODUCTO TERMINADO (Tracking Diario PT) ===")
+
+    total_prods  = len(tpt_rows)
+    stock_total  = sum(r["stock"] or 0 for r in tpt_rows)
+    sin_stock    = [r for r in tpt_rows if (r["stock"] or 0) == 0 and (r["fcst_mes"] or 0) > 0]
+    doh_critico  = [r for r in tpt_rows if r["doh"] is not None and r["doh"] < 7]
+    doh_alto     = [r for r in tpt_rows if r["doh"] is not None and r["doh"] > 60]
+
+    lines.append(f"Total productos en portafolio: {total_prods}")
+    lines.append(f"Stock total en bodega: {int(stock_total):,} unidades")
+    lines.append(f"Productos sin stock (con forecast > 0): {len(sin_stock)}")
+    lines.append(f"Productos con DOH < 7 días (crítico): {len(doh_critico)}")
+    lines.append(f"Productos con DOH > 60 días (exceso): {len(doh_alto)}")
+    lines.append("")
+
+    # Productos sin stock
+    if sin_stock:
+        lines.append("--- PRODUCTOS SIN STOCK (con demanda proyectada) ---")
+        for r in sorted(sin_stock, key=lambda x: -(x["fcst_mes"] or 0)):
+            lines.append(
+                f"  {r['producto']} | EAN:{r['ean']} | ABC:{r['abc']} | "
+                f"Fcst mes: {int(r['fcst_mes']):,}un | Stock: 0 | DOH: 0"
+            )
+        lines.append("")
+
+    # DOH crítico (< 7 días)
+    if doh_critico:
+        lines.append("--- PRODUCTOS CON DOH CRÍTICO (< 7 días) ---")
+        for r in sorted(doh_critico, key=lambda x: x["doh"] or 0):
+            lines.append(
+                f"  {r['producto']} | EAN:{r['ean']} | ABC:{r['abc']} | "
+                f"Stock:{int(r['stock'] or 0):,}un | DOH:{round(r['doh'])}d | "
+                f"Fcst:{int(r['fcst_mes'] or 0):,}un | VentaMTD:{int(r['venta_mtd'] or 0):,}un"
+            )
+        lines.append("")
+
+    # Detalle completo por producto (ordenado por ABC y luego por stock desc)
+    lines.append("--- DETALLE STOCK POR PRODUCTO ---")
+    abc_order = {"A": 0, "B": 1, "C": 2}
+    sorted_rows = sorted(tpt_rows, key=lambda r: (abc_order.get(r["abc"], 9), -(r["stock"] or 0)))
+    for r in sorted_rows:
+        fa_str   = f"{r['fa']}%" if r["fa"] is not None else "—"
+        doh_str  = f"{round(r['doh'])}d" if r["doh"] is not None else "—"
+        fcst_str = f"{int(r['fcst_mes']):,}" if r["fcst_mes"] is not None else "—"
+        mtd_str  = f"{int(r['venta_mtd']):,}" if r["venta_mtd"] is not None else "—"
+        lines.append(
+            f"  {r['producto']} | EAN:{r['ean']} | Cat:{r['categoria']} | ABC:{r['abc']} | "
+            f"Stock:{int(r['stock'] or 0):,}un | DOH:{doh_str} | "
+            f"FcstMes:{fcst_str}un | VentaMTD:{mtd_str}un | FA:{fa_str}"
+        )
+
+    return "\n".join(lines)
+
+
 # ── Llamada a Claude API ──────────────────────────────────────────
 
 def ask_spotia(question: str, context: str, mode: str = "chat", cliente_ctx: str = "") -> str:
@@ -427,6 +492,12 @@ utilizando EXCLUSIVAMENTE los datos que se te proporcionan en el contexto.
 {cliente_instruction}
 
 GLOSARIO DE NEGOCIO — entiende estos términos exactamente así:
+- STOCK: unidades físicas disponibles en bodega para cada producto terminado.
+- DOH (Days on Hand): días de cobertura de stock = stock / (venta MTD / días transcurridos del mes). DOH < 7 = crítico, DOH > 60 = exceso de inventario.
+- FORECAST MES (FcstMes): proyección de venta del mes en curso según S&OP.
+- VENTA MTD (VentaMTD): unidades vendidas en lo que va del mes actual.
+- FA (Forecast Accuracy): precisión del forecast = qué tan cerca estuvo la proyección de la venta real. FA A+B = calculado solo para productos de ranking ABC A y B.
+- ABC: clasificación de productos por importancia de ventas. A = mayor rotación, B = rotación media, C = menor rotación.
 - OC PENDIENTE / OC ACTIVA / OC ABIERTA: son sinónimos. El estado "PENDIENTE" en el archivo significa que la Orden de Compra sigue vigente, el cliente aún la tiene abierta. Puede estar totalmente asignada (FR=100%) o con unidades sin despachar (Back Order).
 - OC CERRADA: el cliente ya cerró formalmente el pedido. Puede haber cerrado con o sin Back Order. Ya no se puede modificar.
 - BACK ORDER (BO): dentro de una OC PENDIENTE, son las unidades solicitadas que NO se han podido asignar/despachar. Si BO UN > 0 en una OC pendiente, esa OC tiene Back Order.
