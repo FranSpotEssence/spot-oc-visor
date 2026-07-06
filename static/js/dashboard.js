@@ -2460,11 +2460,10 @@ function _frmRenderTable(ocs) {
   }
 
   tbody.innerHTML = "";
-  ocs.forEach((oc, idx) => {
-    const detId = `frmes-sku-${idx}`;
-    const hasBO = oc.skus.some(s => s.bo > 0);
-
+  ocs.forEach(oc => {
     const tr = document.createElement("tr");
+    tr.style.cursor = "pointer";
+    tr.addEventListener("click", () => _frmOpenModal(oc));
     tr.innerHTML = `
       <td>${esc(oc.cliente)}</td>
       <td><strong>${esc(oc.oc)}</strong></td>
@@ -2473,48 +2472,87 @@ function _frmRenderTable(ocs) {
       <td style="text-align:right">${fmtMoney(oc.val_fac)}</td>
       <td style="text-align:right">${fmtMoney(oc.val_no_fac)}</td>
       <td style="text-align:center">
-        <button class="frm-ver-btn" onclick="frmToggleSku('${detId}',this)">Ver SKU ▾</button>
-        <button class="frm-ver-btn" style="margin-left:6px" onclick='_exportSkuXlsx(${JSON.stringify(oc)})'>↓ Excel</button>
+        <button class="frm-ver-btn" onclick="event.stopPropagation();_frmOpenModal(${JSON.stringify(oc).replace(/'/g,"&#39;")})">Ver SKU ▾</button>
+        <button class="frm-ver-btn" style="margin-left:6px" onclick="event.stopPropagation();_exportSkuXlsx(${JSON.stringify(oc).replace(/'/g,"&#39;")})">↓ Excel</button>
       </td>
     `;
     tbody.appendChild(tr);
-
-    // Fila SKU detalle
-    const skuRow = document.createElement("tr");
-    skuRow.id = detId;
-    skuRow.className = "frmes-det-row d-none";
-    skuRow.innerHTML = `
-      <td colspan="7" style="padding:0 0 6px 28px;background:#f9fafb">
-        <table class="spot-table w-100" style="font-size:12px;margin:6px 0">
-          <thead>
-            <tr style="background:#f0f4ff">
-              <th>Producto</th>
-              <th style="text-align:center">Categoría</th>
-              <th style="text-align:center">UN Sol.</th>
-              <th style="text-align:center">UN Asig.</th>
-              <th style="text-align:center">BO</th>
-              <th style="text-align:center">FR</th>
-              <th>Comentario / Motivo BO</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${oc.skus.map(s => `
-              <tr${s.bo > 0 ? ' style="background:#fff8f8"' : ''}>
-                <td>${esc(s.producto)}</td>
-                <td style="text-align:center">${esc(s.categoria)}</td>
-                <td style="text-align:center">${s.sol}</td>
-                <td style="text-align:center">${s.asig}</td>
-                <td style="text-align:center">${s.bo > 0 ? `<strong style="color:#dc2626">${s.bo}</strong>` : '0'}</td>
-                <td style="text-align:center"><span class="fr-chip ${s.fr_color}" style="font-size:10px;padding:2px 7px">${s.fr}%</span></td>
-                <td style="color:#555">${s.comentario ? `<span class="spotia-alert" style="font-size:11px">⚠ ${esc(s.comentario)}</span>` : '<span style="color:#bbb">—</span>'}</td>
-              </tr>
-            `).join("")}
-          </tbody>
-        </table>
-      </td>
-    `;
-    tbody.appendChild(skuRow);
   });
+}
+
+// ── MODAL SKU FILL RATE MES ────────────────────────────────────
+function _frmOpenModal(oc) {
+  const modal = new bootstrap.Modal(document.getElementById("ocModal"));
+  const body  = document.getElementById("modalBody");
+
+  setEl("modalClient", oc.cliente);
+  setEl("modalOcInfo",  `OC ${oc.oc} · F. Despacho: ${oc.fecha_despacho}`);
+  const frEl = document.getElementById("modalFr");
+  if (frEl) {
+    frEl.textContent = fmtPct(oc.fr);
+    frEl.className   = `modal-fr-value ${oc.fr_color}`;
+  }
+
+  const sol  = oc.skus.reduce((a, s) => a + s.sol,  0);
+  const asig = oc.skus.reduce((a, s) => a + s.asig, 0);
+  const bo   = oc.skus.reduce((a, s) => a + s.bo,   0);
+  const boVal = oc.val_no_fac || 0;
+  const boValFmt = `$${fmtNum(Math.round(boVal))}`;
+
+  const skuRows = oc.skus.map(s => {
+    const motivoHtml = s.fr >= 100
+      ? `<span class="motivo-ok">Completado</span>`
+      : s.comentario ? `<span style="font-size:10px;color:#555">${esc(s.comentario)}</span>` : ``;
+    const fillColor = s.fr >= 95 ? "#16a34a" : s.fr >= 90 ? "#ca8a04" : s.fr >= 80 ? "#ea580c" : "#dc2626";
+    return `
+      <tr>
+        <td>
+          <div style="font-size:10px;font-weight:600;color:#000">${esc(s.producto)}</div>
+          <div style="font-size:9px;color:#aaa">${esc(s.categoria)}</div>
+        </td>
+        <td style="font-family:monospace;font-size:9px;color:#aaa">${esc(s.ean)}</td>
+        <td>${fmtNum(s.sol)}</td>
+        <td>${fmtNum(s.asig)}</td>
+        <td class="${s.bo > 0 ? 'fw-800' : ''}" style="${s.bo > 0 ? 'color:#dc2626' : 'color:#ccc'}">${fmtNum(s.bo)}</td>
+        <td>
+          <span class="fr-chip ${s.fr_color}" style="font-size:10px;padding:3px 8px">${fmtPct(s.fr)}</span>
+          <div class="pct-bar" style="margin-top:5px">
+            <div class="pct-fill" style="width:${Math.min(s.fr,100)}%;background:${fillColor}"></div>
+          </div>
+        </td>
+        <td>${motivoHtml}</td>
+      </tr>`;
+  }).join("");
+
+  // Adaptar datos para _exportModalXlsx
+  document.getElementById("ocModal").dataset.exportData = JSON.stringify({
+    oc: oc.oc, cliente: oc.cliente, fecha_despacho: oc.fecha_despacho, estado: "CERRADA",
+    skus: oc.skus.map(s => ({
+      producto: s.producto, ean_spot: s.ean, marca: "", categoria: s.categoria,
+      sol: s.sol, asig: s.asig, bo: s.bo, fr: s.fr, stock: "", motivo: s.comentario || "",
+    })),
+  });
+
+  if (body) body.innerHTML = `
+    <div class="modal-sec-label">Resumen de la OC</div>
+    <div class="modal-kpis">
+      <div class="mk"><div class="mk-lbl">UN Solicitadas</div><div class="mk-val">${fmtNum(sol)}</div></div>
+      <div class="mk"><div class="mk-lbl">UN Asignadas</div><div class="mk-val ok">${fmtNum(asig)}</div></div>
+      <div class="mk"><div class="mk-lbl">UN Pendientes</div><div class="mk-val ${bo > 0 ? 'crit' : 'ok'}">${fmtNum(bo)}</div></div>
+      <div class="mk"><div class="mk-lbl">BO Valorizado</div><div class="mk-val ${boVal > 0 ? 'warn' : 'ok'}">${boValFmt}</div></div>
+    </div>
+    <div class="modal-sec-label" style="margin-top:16px">Detalle por SKU</div>
+    <table class="spot-table w-100" style="font-size:12px">
+      <thead><tr>
+        <th>Producto</th><th>EAN</th>
+        <th style="text-align:center">Sol.</th><th style="text-align:center">Asig.</th>
+        <th style="text-align:center">BO</th><th style="text-align:center">FR</th>
+        <th>Comentario</th>
+      </tr></thead>
+      <tbody>${skuRows}</tbody>
+    </table>`;
+
+  modal.show();
 }
 
 // ── EXPORTACIÓN EXCEL ──────────────────────────────────────────
@@ -2568,12 +2606,6 @@ function _downloadXlsx(rows, filename) {
   XLSX.writeFile(wb, `${filename}.xlsx`);
 }
 
-function frmToggleSku(id, btn) {
-  const row = document.getElementById(id);
-  if (!row) return;
-  const hidden = row.classList.toggle("d-none");
-  btn.textContent = hidden ? "Ver SKU ▾" : "Ocultar ▴";
-}
 
 function _frmRenderLossTree(ocs) {
   const ctx = document.getElementById("frMesLossTreeChart")?.getContext("2d");
