@@ -37,7 +37,7 @@ def fr_chip_class(fr: float) -> str:
 # Clientes clave para el cálculo de Venta Perdida MTD
 _CLIENTES_VENTA_PERDIDA = [
     "sodimac", "walmart", "jumbo", "easy", "tottus",
-    "mercado libre", "aramco", "shell", "bestias",
+    "aramco", "shell", "bestias",
 ]
 
 def _venta_perdida_mtd(df_mes: pd.DataFrame) -> float:
