@@ -2785,26 +2785,30 @@ function renderTPT() {
   const tbody = document.getElementById("tptBody");
 
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="11" class="text-center py-4 text-muted">Sin resultados</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="12" class="text-center py-4 text-muted">Sin resultados</td></tr>`;
     renderTPTKpis([]);
     document.getElementById("tptCount").textContent = "0";
     return;
   }
 
   tbody.innerHTML = rows.map(r => {
-    const abcCls = r.abc === "A" ? "abc-A" : r.abc === "B" ? "abc-B" : r.abc === "C" ? "abc-C" : "abc-other";
-    const fa     = _tptPctChip(r.fa);
-    const dohCls = r.doh === null ? "" : r.doh < 7 ? "doh-low" : r.doh > 60 ? "doh-high" : "doh-ok";
-    const dohTxt = r.doh !== null ? r.doh.toFixed(1) : "—";
-    const meses  = (r.meses_ant || []).map(v =>
+    const abcCls  = r.abc === "A" ? "abc-A" : r.abc === "B" ? "abc-B" : r.abc === "C" ? "abc-C" : "abc-other";
+    const fa      = _tptPctChip(r.fa);
+    const dohCls  = r.doh === null ? "" : r.doh < 7 ? "doh-low" : r.doh > 60 ? "doh-high" : "doh-ok";
+    const dohTxt  = r.doh !== null ? r.doh.toFixed(1) : "—";
+    const meses   = (r.meses_ant || []).map(v =>
       `<td style="text-align:right;color:#999">${v !== null ? v.toLocaleString("es-CL") : "—"}</td>`
     ).join("");
+    const fcstTxt = r.fcst_mes !== null && r.fcst_mes !== undefined
+      ? r.fcst_mes.toLocaleString("es-CL")
+      : "—";
     return `<tr>
       <td style="font-size:11px;color:#888;font-family:monospace">${esc(r.ean)}</td>
       <td style="font-weight:500;max-width:220px">${esc(r.producto)}</td>
       <td>${esc(r.marca)}</td>
       <td style="text-align:center"><span class="abc-badge ${abcCls}">${esc(r.abc)}</span></td>
       ${meses}
+      <td style="text-align:right;color:#7c3aed;font-weight:600">${fcstTxt}</td>
       <td style="text-align:right;font-weight:600">${r.venta_mtd !== null ? r.venta_mtd.toLocaleString("es-CL") : "—"}</td>
       <td style="text-align:center">${fa}</td>
       <td style="text-align:right;font-weight:700">${r.stock !== null ? r.stock.toLocaleString("es-CL") : "—"}</td>
