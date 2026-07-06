@@ -2787,22 +2787,24 @@ function renderTPT() {
     const dohCls  = r.doh === null ? "" : r.doh < 7 ? "doh-low" : r.doh > 60 ? "doh-high" : "doh-ok";
     const dohTxt  = r.doh !== null ? r.doh.toFixed(1) : "—";
     const meses   = (r.meses_ant || []).map(v =>
-      `<td style="text-align:right;color:#999">${v !== null ? v.toLocaleString("es-CL") : "—"}</td>`
+      `<td style="text-align:center;color:#999">${v !== null ? v.toLocaleString("es-CL") : "—"}</td>`
     ).join("");
     const fcstTxt = r.fcst_mes !== null && r.fcst_mes !== undefined
       ? r.fcst_mes.toLocaleString("es-CL")
       : "—";
+    const dohInt  = r.doh !== null ? Math.round(r.doh) : null;
+    const dohDisp = dohInt !== null ? dohInt.toLocaleString("es-CL") : "—";
     return `<tr>
       <td style="font-size:11px;color:#888;font-family:monospace">${esc(r.ean)}</td>
       <td style="font-weight:500;max-width:220px">${esc(r.producto)}</td>
       <td>${esc(r.marca)}</td>
       <td style="text-align:center"><span class="abc-badge ${abcCls}">${esc(r.abc)}</span></td>
       ${meses}
-      <td style="text-align:right;color:#7c3aed;font-weight:600">${fcstTxt}</td>
-      <td style="text-align:right;font-weight:600">${r.venta_mtd !== null ? r.venta_mtd.toLocaleString("es-CL") : "—"}</td>
+      <td style="text-align:center;color:#111;font-weight:700">${fcstTxt}</td>
+      <td style="text-align:center;font-weight:600">${r.venta_mtd !== null ? r.venta_mtd.toLocaleString("es-CL") : "—"}</td>
       <td style="text-align:center">${fa}</td>
-      <td style="text-align:right;font-weight:700">${r.stock !== null ? r.stock.toLocaleString("es-CL") : "—"}</td>
-      <td style="text-align:right"><span class="${dohCls}">${dohTxt}</span></td>
+      <td style="text-align:center;font-weight:700;background:#fef9c3;color:#854d0e">${r.stock !== null ? r.stock.toLocaleString("es-CL") : "—"}</td>
+      <td style="text-align:center"><span class="${dohCls}">${dohDisp}</span></td>
     </tr>`;
   }).join("");
 
