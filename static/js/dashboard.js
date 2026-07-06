@@ -115,29 +115,19 @@ function renderKPIs(d) {
   const grid = document.getElementById("kpiGrid");
   if (!grid) return;
 
-  const frColor = colorClass(d.fr_mes_color);
+  const frColor = colorClass(d.fr_pend_mes_color);
 
   grid.innerHTML = `
-    <!-- BIG: Fill Rate -->
+    <!-- BIG: Fill Rate OCs Pendientes del Mes -->
     <div class="kpi-fr ${frColor}">
       <div>
-        <div class="fr-main-label">Fill Rate — Mes Actual</div>
-        <div class="fr-main-value">${fmtPct(d.fr_mes)}</div>
+        <div class="fr-main-label">Fill Rate — OCs Pendientes del Mes</div>
+        <div class="fr-main-value">${fmtPct(d.fr_pend_mes)}</div>
         <div class="fr-main-sub">
-          ${fmtNum(d.asig_mes)} / ${fmtNum(d.sol_mes)} UN · ${d.mes_label || ""}
+          ${fmtNum(d.asig_pend_mes)} / ${fmtNum(d.sol_pend_mes)} UN · ${fmtNum(d.oc_pend_mes)} OCs · ${d.mes_label || ""}
         </div>
       </div>
-      <span class="fr-main-badge">${d.fr_mes_label || ""}</span>
-    </div>
-
-    <!-- Venta Perdida MTD -->
-    <div class="kpi-s s-red">
-      <div>
-        <div class="kpi-s-lbl">Venta Perdida MTD</div>
-        <div class="kpi-s-val kpi-s-val--sm">${fmtMoney(d.venta_perdida_mtd)}</div>
-        <div class="kpi-s-sub">BO clientes clave · ${d.mes_label || ""}</div>
-      </div>
-      <div class="kpi-s-dot"></div>
+      <span class="fr-main-badge">${d.fr_pend_mes_label || ""}</span>
     </div>
 
     <!-- OC en Curso -->
@@ -146,16 +136,6 @@ function renderKPIs(d) {
         <div class="kpi-s-lbl">OC en Curso</div>
         <div class="kpi-s-val">${d.oc_en_curso ?? "—"}</div>
         <div class="kpi-s-sub">pendientes de despacho</div>
-      </div>
-      <div class="kpi-s-dot"></div>
-    </div>
-
-    <!-- Fill Rate OC en Curso -->
-    <div class="kpi-s s-${sClass(d.fr_en_curso_color)}">
-      <div>
-        <div class="kpi-s-lbl">Fill Rate OC en Curso</div>
-        <div class="kpi-s-val">${fmtPct(d.fr_en_curso)}</div>
-        <div class="kpi-s-sub">sobre OCs pendientes</div>
       </div>
       <div class="kpi-s-dot"></div>
     </div>
@@ -170,12 +150,32 @@ function renderKPIs(d) {
       <div class="kpi-s-dot"></div>
     </div>
 
+    <!-- Pendiente de Facturar clientes clave -->
+    <div class="kpi-s s-${d.pend_facturar > 0 ? 'yellow' : 'neu'}">
+      <div>
+        <div class="kpi-s-lbl">Pendiente de Facturar</div>
+        <div class="kpi-s-val kpi-s-val--sm">${fmtMoney(d.pend_facturar)}</div>
+        <div class="kpi-s-sub">OCs abiertas · clientes clave</div>
+      </div>
+      <div class="kpi-s-dot"></div>
+    </div>
+
     <!-- BO Valorizado en Curso -->
     <div class="kpi-s s-${d.bo_val_en_curso > 0 ? 'red' : 'green'}">
       <div>
         <div class="kpi-s-lbl">Back Order Valorizado</div>
         <div class="kpi-s-val kpi-s-val--sm">${fmtMoney(d.bo_val_en_curso)}</div>
         <div class="kpi-s-sub">BO en OCs en curso</div>
+      </div>
+      <div class="kpi-s-dot"></div>
+    </div>
+
+    <!-- Venta Perdida MTD -->
+    <div class="kpi-s s-red">
+      <div>
+        <div class="kpi-s-lbl">Venta Perdida MTD</div>
+        <div class="kpi-s-val kpi-s-val--sm">${fmtMoney(d.venta_perdida_mtd)}</div>
+        <div class="kpi-s-sub">BO clientes clave · ${d.mes_label || ""}</div>
       </div>
       <div class="kpi-s-dot"></div>
     </div>
@@ -354,7 +354,7 @@ function _renderDashLossTree(visibleOrders) {
   }
 
   // Agrupar por categoría árbol de pérdida
-  const COLORS = ["#dc2626","#ea580c","#ca8a04","#16a34a","#2563eb","#7c3aed","#db2777","#0891b2","#65a30d","#b45309"];
+  const COLORS = ["#dc2626","#2563eb","#16a34a","#7c3aed","#ea580c","#0891b2","#db2777","#ca8a04","#65a30d","#b45309"];
   const groups = {};
   boRows.forEach(r => {
     const k = (r.categoria_arbol && r.categoria_arbol.trim()) ? r.categoria_arbol.trim() : "Sin clasificar";
@@ -570,6 +570,9 @@ async function openDetail(ocId, cliente) {
       .filter(s => s.comentario)
       .map(s => `<strong>${esc(s.producto)}:</strong> ${esc(s.comentario)}`)
       .join("<br>");
+
+    // Guardar datos en el modal para exportación
+    document.getElementById("ocModal").dataset.exportData = JSON.stringify(d);
 
     if (body) body.innerHTML = `
       <div class="modal-sec-label">Resumen de la OC</div>
@@ -1280,11 +1283,15 @@ function renderFrhConsultaTable(ocs, searched) {
     if (count) count.textContent = "—";
     if (sub)   sub.textContent   = "Ingresa una OC o aplica filtros para buscar";
     body.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted">Ingresa una OC o aplica filtros para buscar</td></tr>`;
+    const kg = document.getElementById("cKpiGrid");
+    if (kg) kg.style.display = "none";
     return;
   }
 
   if (count) count.textContent = `${ocs.length} resultado${ocs.length !== 1 ? "s" : ""}`;
   if (sub)   sub.textContent   = "";
+
+  _cRenderKpis(ocs);
 
   if (!ocs.length) {
     body.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted">Sin resultados para los filtros aplicados</td></tr>`;
@@ -1293,7 +1300,7 @@ function renderFrhConsultaTable(ocs, searched) {
 
   body.innerHTML = ocs.map((o, i) => `
     <tr class="frh-week-row">
-      <td><strong>${esc(o.cliente)}</strong></td>
+      <td><strong style="${o.pendiente ? 'background:#fef9c3;color:#854d0e;padding:2px 6px;border-radius:4px' : ''}">${esc(o.cliente)}</strong></td>
       <td class="font-mono" style="font-size:11px">${esc(o.oc)}</td>
       <td style="text-align:center">${esc(o.fecha)}</td>
       <td style="text-align:center">${fmtMoney(o.val_tot)}</td>
@@ -1310,6 +1317,36 @@ function renderFrhConsultaTable(ocs, searched) {
         <div id="c-oc-detail-content-${i}" style="padding:4px 0 8px"></div>
       </td>
     </tr>`).join("");
+}
+
+function _cRenderKpis(ocs) {
+  const grid = document.getElementById("cKpiGrid");
+  if (!grid) return;
+
+  if (!ocs.length) { grid.style.display = "none"; return; }
+
+  const totalOcs = ocs.length;
+  const valOc    = ocs.reduce((s, o) => s + (o.val_tot || 0), 0);
+  const valFac   = ocs.reduce((s, o) => s + (o.val_fac || 0), 0);
+  const valBo    = valOc - valFac;
+  const fr       = valOc > 0 ? (valFac / valOc * 100).toFixed(1) : null;
+  const frColor  = fr == null ? "#6b7280" : fr >= 95 ? "#16a34a" : fr >= 90 ? "#ca8a04" : fr >= 80 ? "#ea580c" : "#dc2626";
+  const frBg     = fr == null ? "#f3f4f6" : fr >= 95 ? "#dcfce7" : fr >= 90 ? "#fef9c3" : fr >= 80 ? "#ffedd5" : "#fee2e2";
+
+  const kpi = (label, value, sub = "", accent = "#1a1a1a", bg = "#fff") => `
+    <div style="background:${bg};border:1px solid #e5e7eb;border-radius:12px;padding:16px 18px">
+      <div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#888;margin-bottom:6px">${label}</div>
+      <div style="font-size:22px;font-weight:800;color:${accent};line-height:1.1">${value}</div>
+      ${sub ? `<div style="font-size:10px;color:#aaa;margin-top:4px">${sub}</div>` : ""}
+    </div>`;
+
+  grid.style.display = "grid";
+  grid.innerHTML =
+    kpi("Fill Rate", fr != null ? `${fr}%` : "—", fr != null ? `${fmtMoney(valFac)} / ${fmtMoney(valOc)}` : "", frColor, frBg) +
+    kpi("Cantidad de OCs", fmtNum(totalOcs), `${ocs.filter(o => o.pendiente).length} pendiente${ocs.filter(o=>o.pendiente).length!==1?"s":""}`) +
+    kpi("Valor Total OC",  fmtMoney(valOc),  "valor solicitado") +
+    kpi("Valor Facturado", fmtMoney(valFac), "despacho confirmado") +
+    kpi("Venta Perdida o BO Valorizado", fmtMoney(valBo > 0 ? valBo : 0), "diferencia no facturada", valBo > 0 ? "#dc2626" : "#16a34a");
 }
 
 async function toggleFrhConsultaDetail(idx, ocKey, clienteKey, btn) {
@@ -1609,7 +1646,7 @@ function renderLossTree(rows) {
   const units    = entries.map(([, v]) => v.bo_un);
   const skuCnt   = entries.map(([, v]) => v.items.length);
 
-  const COLORS = ["#dc2626","#ea580c","#ca8a04","#16a34a","#2563eb","#7c3aed","#db2777","#0891b2","#65a30d","#b45309"];
+  const COLORS = ["#dc2626","#2563eb","#16a34a","#7c3aed","#ea580c","#0891b2","#db2777","#ca8a04","#65a30d","#b45309"];
   const bgColors = entries.map((_, i) => COLORS[i % COLORS.length]);
 
   if (BO.lossChart) BO.lossChart.destroy();
@@ -2211,6 +2248,7 @@ function _spotiaSetLoading(on) {
 // ═══════════════════════════════════════════════════════════════
 
 const FRM = { data: null, selected: new Set() }; // selected = clientes seleccionados (vacío = todos)
+const _FRM_LOSS = { chart: null };
 
 async function loadFrMes() {
   if (FRM.data) { _frmApplyFilter(); return; }
@@ -2237,19 +2275,24 @@ function _frmBuildMultiSelect(clientes) {
   `).join("");
 }
 
-function frmMsToggle() {
+function frmMsToggle(e) {
+  if (e) e.stopPropagation();
   const dd = document.getElementById("frmMsDropdown");
-  if (dd) dd.classList.toggle("d-none");
-  // Cerrar al hacer click fuera
-  setTimeout(() => {
-    document.addEventListener("click", _frmMsOutside, { once: true });
-  }, 10);
+  if (!dd) return;
+  const isOpen = !dd.classList.contains("d-none");
+  dd.classList.toggle("d-none");
+  if (!isOpen) {
+    document.addEventListener("click", _frmMsOutside);
+  } else {
+    document.removeEventListener("click", _frmMsOutside);
+  }
 }
 function _frmMsOutside(e) {
   const wrap = document.getElementById("frmMsWrap");
   if (wrap && !wrap.contains(e.target)) {
     const dd = document.getElementById("frmMsDropdown");
     if (dd) dd.classList.add("d-none");
+    document.removeEventListener("click", _frmMsOutside);
   }
 }
 
@@ -2330,6 +2373,7 @@ function _frmApplyFilter() {
   setEl("frMesLabel", kpis.mes_label ? `— ${kpis.mes_label}` : "");
   _frmRenderKpis(kpis);
   _frmRenderTable(ocs);
+  _frmRenderLossTree(ocs);
 }
 
 function _frmColor(fr) {
@@ -2430,6 +2474,7 @@ function _frmRenderTable(ocs) {
       <td style="text-align:right">${fmtMoney(oc.val_no_fac)}</td>
       <td style="text-align:center">
         <button class="frm-ver-btn" onclick="frmToggleSku('${detId}',this)">Ver SKU ▾</button>
+        <button class="frm-ver-btn" style="margin-left:6px" onclick='_exportSkuXlsx(${JSON.stringify(oc)})'>↓ Excel</button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -2472,11 +2517,174 @@ function _frmRenderTable(ocs) {
   });
 }
 
+// ── EXPORTACIÓN EXCEL ──────────────────────────────────────────
+function _exportSkuXlsx(oc) {
+  const rows = (oc.skus || []).map(s => ({
+    "Cliente":          oc.cliente,
+    "N° OC":            oc.oc,
+    "F. Despacho":      oc.fecha_despacho,
+    "Producto":         s.producto,
+    "Categoría":        s.categoria || "",
+    "UN Solicitadas":   s.sol,
+    "UN Asignadas":     s.asig,
+    "Back Order (UN)":  s.bo,
+    "Fill Rate (%)":    s.fr,
+    "BO Valorizado":    s.bo_val || 0,
+    "Comentario / BO":  s.comentario || "",
+  }));
+  _downloadXlsx(rows, `OC_${oc.oc}_SKU`);
+}
+
+function _exportModalXlsx() {
+  const modal = document.getElementById("ocModal");
+  if (!modal?.dataset.exportData) return;
+  const d = JSON.parse(modal.dataset.exportData);
+  const rows = (d.skus || []).map(s => ({
+    "Cliente":          d.cliente,
+    "N° OC":            d.oc,
+    "F. Despacho":      d.fecha_despacho,
+    "Estado":           d.estado || "",
+    "Producto":         s.producto,
+    "EAN SPOT":         s.ean_spot || "",
+    "Marca":            s.marca || "",
+    "Categoría":        s.categoria || "",
+    "UN Solicitadas":   s.sol,
+    "UN Asignadas":     s.asig,
+    "Back Order (UN)":  s.bo,
+    "Fill Rate (%)":    s.fr,
+    "Stock":            s.stock ?? "",
+    "Comentario / BO":  s.motivo || "",
+  }));
+  _downloadXlsx(rows, `OC_${d.oc}_SKU`);
+}
+
+function _downloadXlsx(rows, filename) {
+  const ws = XLSX.utils.json_to_sheet(rows);
+  // Ancho de columnas automático
+  const cols = Object.keys(rows[0] || {}).map(k => ({ wch: Math.max(k.length, 14) }));
+  ws["!cols"] = cols;
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Detalle SKU");
+  XLSX.writeFile(wb, `${filename}.xlsx`);
+}
+
 function frmToggleSku(id, btn) {
   const row = document.getElementById(id);
   if (!row) return;
   const hidden = row.classList.toggle("d-none");
   btn.textContent = hidden ? "Ver SKU ▾" : "Ocultar ▴";
+}
+
+function _frmRenderLossTree(ocs) {
+  const ctx = document.getElementById("frMesLossTreeChart")?.getContext("2d");
+  const tbl = document.getElementById("frMesLossTreeTable");
+  const sub = document.getElementById("frMesLossTreeSub");
+  if (!ctx) return;
+
+  const COLORS = ["#dc2626","#2563eb","#16a34a","#7c3aed","#ea580c","#0891b2","#db2777","#ca8a04","#65a30d","#b45309"];
+
+  // Recopilar todos los SKUs con BO de las OCs visibles
+  const boSkus = [];
+  ocs.forEach(oc => {
+    (oc.skus || []).forEach(s => {
+      if (s.bo > 0) boSkus.push({ ...s, oc: oc.oc, cliente: oc.cliente });
+    });
+  });
+
+  if (sub) sub.textContent = `${ocs.length} OC${ocs.length !== 1 ? "s" : ""} cerrada${ocs.length !== 1 ? "s" : ""}`;
+
+  // Agrupar por categoria_arbol
+  const groups = {};
+  boSkus.forEach(s => {
+    const k = s.categoria_arbol?.trim() || "Sin clasificar";
+    if (!groups[k]) groups[k] = { bo_un: 0, bo_val: 0, items: [] };
+    groups[k].bo_un  += s.bo;
+    groups[k].bo_val += s.bo_val || 0;
+    groups[k].items.push(s);
+  });
+
+  const entries  = Object.entries(groups).sort((a, b) => b[1].bo_val - a[1].bo_val);
+  const totalVal = entries.reduce((s, [, v]) => s + v.bo_val, 0);
+
+  if (!entries.length) {
+    if (_FRM_LOSS.chart) { _FRM_LOSS.chart.destroy(); _FRM_LOSS.chart = null; }
+    if (tbl) tbl.innerHTML = `<div style="padding:24px;color:#aaa;font-size:12px;text-align:center">Sin back order en OCs cerradas del mes</div>`;
+    return;
+  }
+
+  const labels   = entries.map(([k]) => k);
+  const values   = entries.map(([, v]) => v.bo_val);
+  const units    = entries.map(([, v]) => v.bo_un);
+  const skuCnt   = entries.map(([, v]) => v.items.length);
+  const bgColors = entries.map((_, i) => COLORS[i % COLORS.length]);
+
+  if (_FRM_LOSS.chart) _FRM_LOSS.chart.destroy();
+  _FRM_LOSS.chart = new Chart(ctx, {
+    type: "doughnut",
+    data: { labels, datasets: [{ data: values, backgroundColor: bgColors.map(c => c + "dd"), borderColor: bgColors, borderWidth: 2, hoverOffset: 8 }] },
+    options: {
+      responsive: true, cutout: "52%",
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: {
+          label: c => { const pct = totalVal > 0 ? ((c.raw/totalVal)*100).toFixed(1) : 0; return ` ${fmtMoney(c.raw)}  (${pct}%)`; },
+          afterLabel: c => ` ${fmtNum(units[c.dataIndex])} UN · ${skuCnt[c.dataIndex]} SKU`,
+        }}
+      }
+    }
+  });
+
+  if (!tbl) return;
+  tbl.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead>
+        <tr style="border-bottom:2px solid #f0f0f0">
+          <th style="padding:6px 10px;text-align:left;color:#888;font-weight:600"></th>
+          <th style="padding:6px 10px;text-align:left;color:#888;font-weight:600">Categoría</th>
+          <th style="padding:6px 10px;text-align:right;color:#888;font-weight:600">%</th>
+          <th style="padding:6px 10px;text-align:right;color:#888;font-weight:600">BO Valorizado</th>
+          <th style="padding:6px 10px;text-align:right;color:#888;font-weight:600">UN</th>
+          <th style="padding:6px 10px"></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${entries.map(([k, v], i) => {
+          const pct = totalVal > 0 ? ((v.bo_val / totalVal) * 100).toFixed(1) : "0.0";
+          const uid = `frm-lt-${i}`;
+          const skuRows = v.items.map(s => `
+            <tr style="background:#fafafa">
+              <td colspan="2" style="padding:5px 12px 5px 36px;font-size:10px;color:#444">${esc(s.producto)}</td>
+              <td style="padding:5px 10px;text-align:right;font-size:10px;color:#666">${s.fr}%</td>
+              <td style="padding:5px 10px;text-align:right;font-size:10px;font-weight:600;font-variant-numeric:tabular-nums">${fmtMoney(s.bo_val||0)}</td>
+              <td style="padding:5px 10px;text-align:right;font-size:10px;color:#666">${fmtNum(s.bo)}</td>
+              <td></td>
+            </tr>`).join("");
+          return `
+            <tr style="border-bottom:1px solid #f0f0f0" id="${uid}-row">
+              <td style="padding:8px 10px"><div style="width:12px;height:12px;border-radius:3px;background:${bgColors[i]}"></div></td>
+              <td style="padding:8px 10px;font-weight:600;color:#1a1a1a">${esc(k)}</td>
+              <td style="padding:8px 10px;text-align:right">
+                <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px">
+                  <div style="width:60px;height:6px;background:#f0f0f0;border-radius:3px;overflow:hidden">
+                    <div style="width:${pct}%;height:100%;background:${bgColors[i]};border-radius:3px"></div>
+                  </div>
+                  <span style="font-weight:700;color:#333;min-width:36px;text-align:right">${pct}%</span>
+                </div>
+              </td>
+              <td style="padding:8px 10px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums">${fmtMoney(v.bo_val)}</td>
+              <td style="padding:8px 10px;text-align:right;color:#555">${fmtNum(v.bo_un)}</td>
+              <td style="padding:8px 10px;text-align:right">
+                <button onclick="toggleLtSkus('${uid}',this)"
+                  style="background:none;border:1px solid #e4e4e4;border-radius:4px;padding:3px 8px;font-size:9px;font-family:inherit;font-weight:700;color:#555;cursor:pointer;letter-spacing:.3px;white-space:nowrap">
+                  VER SKU ▾
+                </button>
+              </td>
+            </tr>
+            <tr id="${uid}" style="display:none">${skuRows ? `<td colspan="6" style="padding:0">${'<table style="width:100%;border-collapse:collapse">' + skuRows + '</table>'}</td>` : ""}</tr>
+          `;
+        }).join("")}
+      </tbody>
+    </table>`;
 }
 
 function _frLabel(fr) {

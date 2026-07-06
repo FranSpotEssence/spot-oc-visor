@@ -215,36 +215,73 @@
         <div class="leg-i"><div class="leg-dot" style="background:#dc2626"></div>&lt;80% Crítico</div>
       </div>
 
+      <!-- Filtro clientes -->
+      <div class="panel frh-filter-bar" style="margin-bottom:0">
+        <div class="frh-filters" style="align-items:center;gap:16px">
+          <span style="font-size:12px;font-weight:600;color:#555;white-space:nowrap">Filtrar por cliente:</span>
+          <div class="frm-ms-wrap" id="frmMsWrap">
+            <div class="frm-ms-trigger" id="frmMsTrigger" onclick="frmMsToggle(event)">
+              <span id="frmMsLabel">Todos los clientes</span>
+              <span style="margin-left:6px;color:#888">▾</span>
+            </div>
+            <div class="frm-ms-dropdown d-none" id="frmMsDropdown">
+              <label class="frm-ms-opt frm-ms-all">
+                <input type="checkbox" id="frmMsAll" checked onchange="frmMsToggleAll(this)">
+                <span>Todos</span>
+              </label>
+              <div id="frmMsOptions"></div>
+            </div>
+          </div>
+          <div id="frmMsChips" class="frm-ms-chips"></div>
+          <button class="clear-btn" onclick="frmMsClear()" id="frmMsClearBtn" style="display:none">Limpiar filtros</button>
+        </div>
+      </div>
+
       <!-- KPI CARDS -->
-      <div class="kpi-grid" id="frMesKpiGrid">
+      <div class="kpi-grid" id="frMesKpiGrid" style="margin-top:16px">
         <div class="kpi-skeleton"></div>
         <div class="kpi-skeleton"></div>
         <div class="kpi-skeleton"></div>
         <div class="kpi-skeleton"></div>
       </div>
 
-      <!-- Tabla por cliente -->
+      <!-- Tabla OCs -->
       <div class="panel" style="margin-top:16px">
         <div class="panel-head">
-          <span class="panel-title">Detalle por Cliente — MTD OCs Cerradas</span>
-          <span class="panel-count" id="frMesCliCount">—</span>
+          <span class="panel-title">OCs Cerradas — MTD</span>
+          <span class="panel-count" id="frMesOcCount">—</span>
         </div>
         <div class="table-responsive">
-          <table class="spot-table w-100" id="frMesCliTable">
+          <table class="spot-table w-100">
             <thead>
               <tr>
                 <th>Cliente</th>
-                <th style="text-align:center">N° OCs</th>
+                <th>N° OC</th>
+                <th style="text-align:center">F. Despacho</th>
                 <th style="text-align:center">Fill Rate</th>
                 <th style="text-align:right">Venta Facturada</th>
                 <th style="text-align:right">Venta No Facturada</th>
-                <th style="text-align:center">Detalle</th>
+                <th style="text-align:center">Detalle SKU</th>
               </tr>
             </thead>
-            <tbody id="frMesCliBody">
-              <tr><td colspan="6" class="text-center py-4 text-muted">Cargando...</td></tr>
+            <tbody id="frMesOcBody">
+              <tr><td colspan="7" class="text-center py-4 text-muted">Cargando...</td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- Árbol de Pérdida -->
+      <div class="panel" style="margin-top:16px">
+        <div class="panel-head">
+          <span class="panel-title">Árbol de Pérdida — OCs Cerradas MTD</span>
+          <span style="font-size:11px;color:#888;font-weight:500" id="frMesLossTreeSub">según filtros aplicados</span>
+        </div>
+        <div style="display:flex;gap:32px;align-items:flex-start;flex-wrap:wrap;padding:18px">
+          <div style="width:260px;flex-shrink:0">
+            <canvas id="frMesLossTreeChart"></canvas>
+          </div>
+          <div style="flex:1;min-width:280px" id="frMesLossTreeTable"></div>
         </div>
       </div>
     </section>
@@ -284,32 +321,10 @@
     <section id="sectionFrhistorico" class="d-none">
       <div class="page-header">
         <h1 class="page-title">Fill Rate Histórico</h1>
-        <p class="page-sub">Evolución por cliente · Referencia: Fecha de Despacho · <span class="ph-pill">KAM · GERENCIA COMERCIAL</span></p>
+        <p class="page-sub">Consulta de historial de Órdenes de Compra</p>
       </div>
 
-      <!-- Filtros globales -->
-      <div class="panel frh-filter-bar">
-        <div class="frh-filters">
-          <div class="frh-fg">
-            <label class="frh-lbl">Cliente</label>
-            <select id="frhCliente" class="filter-select" style="min-width:170px" onchange="filterFrh()">
-              <option value="">Todos los clientes</option>
-            </select>
-          </div>
-          <button class="clear-btn" onclick="clearFrhFilters()">Limpiar filtros</button>
-          <a id="frhExportAll" href="/api/export/fr-historico-csv" class="exp-btn" target="_blank">↓ CSV</a>
-        </div>
-      </div>
-
-      <!-- Tab nav -->
-      <div class="frh-tab-nav">
-        <button class="frh-tab frh-tab-active" data-tab="consulta" onclick="switchFrhTab('consulta')">Consulta</button>
-        <button class="frh-tab" data-tab="semanal"  onclick="switchFrhTab('semanal')">Semanal</button>
-        <button class="frh-tab" data-tab="mensual"  onclick="switchFrhTab('mensual')">Mensual</button>
-      </div>
-
-      <!-- ─── Subsección CONSULTA ──────────────────────────────────── -->
-      <div id="frhTabConsulta">
+      <!-- Consulta de OCs históricas -->
 
         <!-- Filtros de búsqueda -->
         <div class="panel frh-panel" style="padding:18px 20px;margin-bottom:12px">
@@ -339,12 +354,19 @@
           </div>
         </div>
 
+        <!-- KPIs de consulta -->
+        <div id="cKpiGrid" style="display:none;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:12px"></div>
+
         <!-- Tabla de OCs -->
         <div class="panel frh-panel" id="cOcPanel">
           <div class="panel-head">
             <span class="panel-title">Órdenes de Compra</span>
             <span class="panel-count" id="cOcCount">—</span>
             <span class="rank-sub" style="margin-left:8px" id="cOcSub">Ingresa una OC o aplica filtros para buscar</span>
+            <span style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:11px;color:#92400e;background:#fef9c3;border:1px solid #fde68a;border-radius:6px;padding:3px 10px;font-weight:500">
+              <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#fef9c3;border:1px solid #f59e0b"></span>
+              OC abierta o pendiente
+            </span>
           </div>
           <div class="table-responsive">
             <table class="spot-table w-100">
@@ -366,184 +388,6 @@
           </div>
         </div>
 
-      </div><!-- /frhTabConsulta -->
-
-      <!-- ─── Subsección MENSUAL ─────────────────────────────────── -->
-      <div id="frhTabMensual" style="display:none">
-
-        <!-- Selector de meses -->
-        <div class="panel frh-panel" style="padding:14px 20px;margin-bottom:12px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-            <span style="font-size:8px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#888">Seleccionar meses</span>
-            <button class="clear-btn" style="font-size:9px" onclick="clearFrhMonths()">Quitar selección</button>
-          </div>
-          <div id="frhMonthPills" style="display:flex;gap:6px;flex-wrap:wrap">
-            <!-- Generado por JS -->
-          </div>
-        </div>
-
-        <!-- KPI cards mensuales -->
-        <div class="frh-kpi-row" id="frhKpis">
-          <div class="kpi-skeleton" style="height:90px;flex:1"></div>
-          <div class="kpi-skeleton" style="height:90px;flex:1"></div>
-          <div class="kpi-skeleton" style="height:90px;flex:1"></div>
-          <div class="kpi-skeleton" style="height:90px;flex:1"></div>
-          <div class="kpi-skeleton" style="height:90px;flex:1"></div>
-          <div class="kpi-skeleton" style="height:90px;flex:1"></div>
-        </div>
-
-        <!-- Gráfico tendencia mensual (siempre muestra últimos 12 meses) -->
-        <div class="panel frh-panel">
-          <div class="panel-head">
-            <span class="panel-title">Tendencia Fill Rate</span>
-            <span class="rank-sub" style="margin-left:8px">últimos 12 meses · fecha de despacho</span>
-          </div>
-          <div style="position:relative;height:115px">
-            <canvas id="frhMonthChart"></canvas>
-          </div>
-        </div>
-
-        <!-- Tabla por cliente (período seleccionado) -->
-        <div class="panel frh-panel">
-          <div class="panel-head">
-            <span class="panel-title">Por Cliente</span>
-            <span class="panel-count" id="frhMensualCount">—</span>
-            <a id="frhExportMensual" href="/api/export/fr-historico-csv?tipo=mensual" class="exp-btn ms-auto" target="_blank">↓ CSV</a>
-          </div>
-          <div class="table-responsive">
-            <table class="spot-table w-100">
-              <thead>
-                <tr>
-                  <th>Cliente</th>
-                  <th style="text-align:center">Fill Rate</th>
-                  <th style="text-align:center">Despachos</th>
-                  <th style="text-align:center">Valor Total OC</th>
-                  <th style="text-align:center">Valor Facturado</th>
-                  <th style="text-align:center">Valor BO</th>
-                </tr>
-              </thead>
-              <tbody id="frhMensualBody">
-                <tr><td colspan="6" class="text-center py-4 text-muted">Cargando...</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Tabla por Producto (visible solo cuando hay cliente seleccionado) -->
-        <div class="panel frh-panel" id="frhProductPanel" style="display:none">
-          <div class="panel-head">
-            <span class="panel-title">Por Producto</span>
-            <span class="panel-count" id="frhProductCount">—</span>
-            <span class="rank-sub" style="margin-left:8px">ordenado de peor a mejor FR</span>
-          </div>
-          <div class="table-responsive">
-            <table class="spot-table w-100">
-              <thead>
-                <tr>
-                  <th>Producto</th>
-                  <th style="text-align:center">Fill Rate</th>
-                  <th style="text-align:center">Valor Solicitado</th>
-                  <th style="text-align:center">Valor Asignado</th>
-                  <th style="text-align:center">Valor BO</th>
-                  <th style="text-align:center">Detalle</th>
-                </tr>
-              </thead>
-              <tbody id="frhProductBody">
-                <tr><td colspan="6" class="text-center py-4 text-muted">Selecciona un cliente para ver el detalle por producto</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-      </div><!-- /frhTabMensual -->
-
-      <!-- ─── Subsección SEMANAL ─────────────────────────────────── -->
-      <div id="frhTabSemanal" style="display:none">
-
-        <!-- Selector de semanas -->
-        <div class="panel frh-panel" style="padding:14px 20px;margin-bottom:12px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-            <span style="font-size:8px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#888">Seleccionar semanas</span>
-            <button class="clear-btn" style="font-size:9px" onclick="clearFrhWeeks()">Quitar selección</button>
-          </div>
-          <div id="frhWeekPills" style="display:flex;gap:6px;flex-wrap:wrap">
-            <!-- Generado por JS -->
-          </div>
-        </div>
-
-        <!-- KPI cards semanales -->
-        <div class="frh-kpi-row" id="frhKpisW">
-          <div class="kpi-skeleton" style="height:90px;flex:1"></div>
-          <div class="kpi-skeleton" style="height:90px;flex:1"></div>
-          <div class="kpi-skeleton" style="height:90px;flex:1"></div>
-          <div class="kpi-skeleton" style="height:90px;flex:1"></div>
-          <div class="kpi-skeleton" style="height:90px;flex:1"></div>
-          <div class="kpi-skeleton" style="height:90px;flex:1"></div>
-        </div>
-
-        <!-- Gráfico tendencia semanal -->
-        <div class="panel frh-panel">
-          <div class="panel-head">
-            <span class="panel-title">Tendencia Fill Rate</span>
-            <span class="rank-sub" style="margin-left:8px">últimas 12 semanas · fecha de despacho</span>
-          </div>
-          <div style="position:relative;height:115px">
-            <canvas id="frhWeekChart"></canvas>
-          </div>
-        </div>
-
-        <!-- Tabla por cliente semanal -->
-        <div class="panel frh-panel">
-          <div class="panel-head">
-            <span class="panel-title">Por Cliente</span>
-            <span class="panel-count" id="frhClienteWCount">—</span>
-          </div>
-          <div class="table-responsive">
-            <table class="spot-table w-100">
-              <thead>
-                <tr>
-                  <th>Cliente</th>
-                  <th style="text-align:center">Fill Rate</th>
-                  <th style="text-align:center">Despachos</th>
-                  <th style="text-align:center">Valor Total OC</th>
-                  <th style="text-align:center">Valor Facturado</th>
-                  <th style="text-align:center">Valor BO</th>
-                </tr>
-              </thead>
-              <tbody id="frhClienteWBody">
-                <tr><td colspan="6" class="text-center py-4 text-muted">Cargando...</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Tabla por producto semanal (visible solo cuando hay cliente seleccionado) -->
-        <div class="panel frh-panel" id="frhProductWPanel" style="display:none">
-          <div class="panel-head">
-            <span class="panel-title">Por Producto</span>
-            <span class="panel-count" id="frhProductWCount">—</span>
-            <span class="rank-sub" style="margin-left:8px">ordenado de peor a mejor FR</span>
-          </div>
-          <div class="table-responsive">
-            <table class="spot-table w-100">
-              <thead>
-                <tr>
-                  <th>Producto</th>
-                  <th style="text-align:center">Fill Rate</th>
-                  <th style="text-align:center">Valor Solicitado</th>
-                  <th style="text-align:center">Valor Asignado</th>
-                  <th style="text-align:center">Valor BO</th>
-                  <th style="text-align:center">Detalle</th>
-                </tr>
-              </thead>
-              <tbody id="frhProductWBody">
-                <tr><td colspan="6" class="text-center py-4 text-muted">Selecciona un cliente para ver el detalle por producto</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-      </div><!-- /frhTabSemanal -->
     </section>
 
     <!-- ══ SECCIÓN: DETALLE BACK ORDER ══ -->
@@ -826,12 +670,18 @@
       <div class="modal-body spot-modal-body" id="modalBody">
         <div class="text-center py-5 text-muted">Cargando detalle...</div>
       </div>
+      <div class="modal-footer" style="border-top:1px solid #f0f0f0;padding:10px 20px;justify-content:flex-start">
+        <button class="exp-btn" onclick="_exportModalXlsx()" style="font-size:11px;padding:5px 14px">
+          ↓ Exportar Excel
+        </button>
+      </div>
     </div>
   </div>
 </div>
 
 <!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>

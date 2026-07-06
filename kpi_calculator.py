@@ -75,13 +75,29 @@ def compute_kpis(df: pd.DataFrame) -> dict:
     # 2. OC en Curso — cantidad de OCs pendientes distintas
     oc_en_curso = df_pend["oc"].nunique() if "oc" in df_pend.columns else 0
 
-    # 3. Fill Rate de OC en Curso
+    # 3. Fill Rate de OC en Curso (todas las pendientes)
     sol_pend  = df_pend["un_solicitadas"].sum()
     asig_pend = df_pend["un_asignadas"].sum()
     fr_en_curso = round((asig_pend / sol_pend * 100), 1) if sol_pend > 0 else 0.0
 
+    # 3b. Fill Rate OCs pendientes con despacho en el mes actual
+    df_pend_mes = df_pend[df_pend["fecha_despacho"].between(mes_ini, mes_fin)] if "fecha_despacho" in df_pend.columns else pd.DataFrame()
+    sol_pm  = df_pend_mes["un_solicitadas"].sum() if not df_pend_mes.empty else 0
+    asig_pm = df_pend_mes["un_asignadas"].sum()   if not df_pend_mes.empty else 0
+    fr_pend_mes = round((asig_pm / sol_pm * 100), 1) if sol_pm > 0 else 0.0
+    oc_pend_mes = df_pend_mes["oc"].nunique() if not df_pend_mes.empty and "oc" in df_pend_mes.columns else 0
+
     # 4. Valorizado de OC en Curso (suma valor_total)
     val_en_curso = _safe_sum(df_pend, "valor_total")
+
+    # 4b. Pendiente de Facturar — valor_total OCs pendientes de clientes clave
+    if not df_pend.empty and "cliente" in df_pend.columns:
+        _mask_clave = df_pend["cliente"].str.lower().fillna("").apply(
+            lambda c: any(kw in c for kw in _CLIENTES_VENTA_PERDIDA)
+        )
+        pend_facturar = float(df_pend.loc[_mask_clave, "valor_total"].sum()) if "valor_total" in df_pend.columns else 0.0
+    else:
+        pend_facturar = 0.0
 
     # 5. Back Order Valorizado de OC en Curso
     bo_val_en_curso = _safe_sum(df_pend, "bo_valorizado")
@@ -100,7 +116,16 @@ def compute_kpis(df: pd.DataFrame) -> dict:
         "fr_mes_color": semaforo_fr(fr_mes),
         "fr_mes_label": _fr_label(fr_mes),
 
+        "fr_pend_mes":       fr_pend_mes,
+        "fr_pend_mes_color": semaforo_fr(fr_pend_mes),
+        "fr_pend_mes_label": _fr_label(fr_pend_mes),
+        "oc_pend_mes":       oc_pend_mes,
+        "sol_pend_mes":      int(sol_pm),
+        "asig_pend_mes":     int(asig_pm),
+
         "venta_perdida_mtd": round(venta_perdida_mtd, 0),
+
+        "pend_facturar":        round(pend_facturar, 0),
 
         "oc_en_curso":          oc_en_curso,
         "fr_en_curso":          fr_en_curso,
@@ -262,7 +287,10 @@ def compute_oc_detail(df: pd.DataFrame, oc_id: str, cliente: str = "") -> dict:
 
 def _empty_kpis() -> dict:
     return {
+        "pend_facturar": 0,
         "fr_mes": 0, "fr_mes_color": "red", "fr_mes_label": "SIN DATOS",
+        "fr_pend_mes": 0, "fr_pend_mes_color": "red", "fr_pend_mes_label": "SIN DATOS",
+        "oc_pend_mes": 0, "sol_pend_mes": 0, "asig_pend_mes": 0,
         "oc_en_curso": 0,
         "fr_en_curso": 0, "fr_en_curso_color": "red",
         "val_en_curso": 0, "bo_val_en_curso": 0,

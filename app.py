@@ -835,17 +835,26 @@ def api_fr_consulta():
         val_fac =("valor_facturado", "sum"),
     ).reset_index()
 
+    # Estado por OC: CERRADA solo si todas las líneas son CERRADA
+    estado_por_oc = {}
+    if "estado" in dfw.columns:
+        for oc_key, grp in dfw.groupby("oc"):
+            estados = grp["estado"].str.upper().unique()
+            estado_por_oc[str(oc_key)] = "CERRADA" if list(estados) == ["CERRADA"] else "PENDIENTE"
+
     ocs = []
     for _, r in oc_grp.sort_values("fecha_despacho", ascending=False).iterrows():
         sol = float(r["un_sol"])
         fr  = round(float(r["un_asig"]) / sol * 100, 1) if sol > 0 else 0.0
+        oc_key = str(r["oc"])
         ocs.append({
-            "oc":      str(r["oc"]),
+            "oc":      oc_key,
             "cliente": r["cliente"],
             "fecha":   r["fecha_despacho"].strftime("%d/%m/%Y"),
             "val_tot": float(r["val_tot"]),
             "val_fac": float(r["val_fac"]),
             "fr":      fr,
+            "pendiente": estado_por_oc.get(oc_key, "CERRADA") != "CERRADA",
         })
 
     # Detalle por producto cuando hay OC exacta
@@ -1188,16 +1197,20 @@ def api_fr_mes():
             motivo = str(row.get("motivo_bo", "") or "").strip()
             if motivo in ("nan", "None"): motivo = ""
             nota = (coment or motivo) if s_bo > 0 else ""
+            cat_arbol = str(row.get("categoria_arbol", "") or "").strip()
+            if cat_arbol in ("nan", "None"): cat_arbol = ""
             skus.append({
-                "producto":  str(row.get("producto", "") or ""),
-                "ean":       str(row.get("ean_spot",  "") or "").replace(".0",""),
-                "categoria": str(row.get("categoria", "") or ""),
-                "sol":       s_sol,
-                "asig":      s_asig,
-                "bo":        s_bo,
-                "fr":        s_fr,
-                "fr_color":  fr_chip_class(s_fr),
-                "comentario": nota,
+                "producto":       str(row.get("producto", "") or ""),
+                "ean":            str(row.get("ean_spot",  "") or "").replace(".0",""),
+                "categoria":      str(row.get("categoria", "") or ""),
+                "categoria_arbol": cat_arbol,
+                "sol":            s_sol,
+                "asig":           s_asig,
+                "bo":             s_bo,
+                "bo_val":         round(float(row.get("bo_valorizado", 0) or 0), 0),
+                "fr":             s_fr,
+                "fr_color":       fr_chip_class(s_fr),
+                "comentario":     nota,
             })
 
         ocs.append({
