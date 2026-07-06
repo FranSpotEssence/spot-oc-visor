@@ -175,7 +175,7 @@ function renderKPIs(d) {
       <div>
         <div class="kpi-s-lbl">Venta Perdida MTD</div>
         <div class="kpi-s-val kpi-s-val--sm">${fmtMoney(d.venta_perdida_mtd)}</div>
-        <div class="kpi-s-sub">BO clientes clave · ${d.mes_label || ""}</div>
+        <div class="kpi-s-sub">Clientes Retail · ${d.mes_label || ""}</div>
       </div>
       <div class="kpi-s-dot"></div>
     </div>
@@ -2433,7 +2433,7 @@ function _frmRenderKpis(kpis) {
       <div>
         <div class="kpi-s-lbl">Venta Perdida MTD</div>
         <div class="kpi-s-val kpi-s-val--sm">${fmtMoney(kpis.venta_perdida_mtd)}</div>
-        <div class="kpi-s-sub">BO clientes clave</div>
+        <div class="kpi-s-sub">Clientes Retail</div>
       </div>
       <div class="kpi-s-dot"></div>
     </div>
