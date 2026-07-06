@@ -2358,15 +2358,17 @@ function _frmApplyFilter() {
     const fac  = ocs.reduce((a, o) => a + o.val_fac, 0);
     // Venta perdida: OCs de clientes clave dentro del filtro
     const CLAVE = ["sodimac","walmart","jumbo","easy","tottus","mercado libre","aramco","shell","bestias"];
-    const perdida = ocs.filter(o => CLAVE.some(kw => o.cliente.toLowerCase().includes(kw)))
-                       .reduce((a, o) => a + o.val_no_fac, 0);
+    const ocsRetail = ocs.filter(o => CLAVE.some(kw => o.cliente.toLowerCase().includes(kw)));
+    const perdida   = ocsRetail.reduce((a, o) => a + o.val_no_fac, 0);
+    const facRetail = ocsRetail.reduce((a, o) => a + o.val_fac, 0);
     kpis = {
       ...kpisBase,
-      fr_mtd:              sol > 0 ? Math.round(asig / sol * 1000) / 10 : null,
-      fr_mtd_color:        sol > 0 ? _frmColor(asig/sol*100) : "red",
-      venta_facturada_mtd: Math.round(fac),
-      venta_perdida_mtd:   Math.round(perdida),
-      n_ocs_despachadas:   ocs.length,
+      fr_mtd:                      sol > 0 ? Math.round(asig / sol * 1000) / 10 : null,
+      fr_mtd_color:                sol > 0 ? _frmColor(asig/sol*100) : "red",
+      venta_facturada_mtd:         Math.round(fac),
+      venta_facturada_retail_mtd:  Math.round(facRetail),
+      venta_perdida_mtd:           Math.round(perdida),
+      n_ocs_despachadas:           ocs.length,
     };
   }
 
@@ -2426,6 +2428,14 @@ function _frmRenderKpis(kpis) {
         <div class="kpi-s-lbl">Venta Facturada + Asignada MTD</div>
         <div class="kpi-s-val kpi-s-val--sm">${fmtMoney(kpis.venta_facturada_mtd)}</div>
         <div class="kpi-s-sub">valor facturado OCs cerradas</div>
+      </div>
+      <div class="kpi-s-dot"></div>
+    </div>
+    <div class="kpi-s s-neu">
+      <div>
+        <div class="kpi-s-lbl">Venta Facturada</div>
+        <div class="kpi-s-val kpi-s-val--sm">${fmtMoney(kpis.venta_facturada_retail_mtd)}</div>
+        <div class="kpi-s-sub">OCs cerradas · clientes Retail</div>
       </div>
       <div class="kpi-s-dot"></div>
     </div>

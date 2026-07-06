@@ -1144,7 +1144,7 @@ def api_fr_mes():
     if df_mes.empty:
         return jsonify({
             "kpis": {"fr_mtd": None, "fr_mtd_color": "red",
-                     "venta_facturada_mtd": 0, "venta_perdida_mtd": 0,
+                     "venta_facturada_mtd": 0, "venta_facturada_retail_mtd": 0, "venta_perdida_mtd": 0,
                      "n_ocs_despachadas": 0, "mes_label": mes_label,
                      "fr_ant": fr_ant, "ant_label": ant_label, "variacion": None},
             "clientes": clientes_list,
@@ -1159,17 +1159,19 @@ def api_fr_mes():
         cl   = df_scope["cliente"].str.lower().fillna("")
         mask = cl.apply(lambda c: any(kw in c for kw in _CLIENTES_VENTA_PERDIDA))
         perdida = float(df_scope.loc[mask, "bo_valorizado"].sum())
+        fac_retail = float(df_scope.loc[mask, "valor_facturado"].sum())
         variacion = round(fr - fr_ant, 1) if (fr is not None and fr_ant is not None) else None
         return {
-            "fr_mtd":              fr,
-            "fr_mtd_color":        semaforo_fr(fr) if fr is not None else "red",
-            "venta_facturada_mtd": round(fac, 0),
-            "venta_perdida_mtd":   round(perdida, 0),
-            "n_ocs_despachadas":   int(df_scope["oc"].nunique()),
-            "mes_label":           mes_label,
-            "fr_ant":              fr_ant,
-            "ant_label":           ant_label,
-            "variacion":           variacion,
+            "fr_mtd":                    fr,
+            "fr_mtd_color":              semaforo_fr(fr) if fr is not None else "red",
+            "venta_facturada_mtd":       round(fac, 0),
+            "venta_facturada_retail_mtd": round(fac_retail, 0),
+            "venta_perdida_mtd":         round(perdida, 0),
+            "n_ocs_despachadas":         int(df_scope["oc"].nunique()),
+            "mes_label":                 mes_label,
+            "fr_ant":                    fr_ant,
+            "ant_label":                 ant_label,
+            "variacion":                 variacion,
         }
 
     kpis = _build_kpis(df_mes)
