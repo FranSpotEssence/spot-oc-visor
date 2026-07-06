@@ -169,16 +169,6 @@ function renderKPIs(d) {
       </div>
       <div class="kpi-s-dot"></div>
     </div>
-
-    <!-- Venta Perdida MTD -->
-    <div class="kpi-s s-red">
-      <div>
-        <div class="kpi-s-lbl">Venta Perdida MTD</div>
-        <div class="kpi-s-val kpi-s-val--sm">${fmtMoney(d.venta_perdida_mtd)}</div>
-        <div class="kpi-s-sub">Clientes Retail · ${d.mes_label || ""}</div>
-      </div>
-      <div class="kpi-s-dot"></div>
-    </div>
   `;
 
   // Actualizar badges sidebar
