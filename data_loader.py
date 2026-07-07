@@ -375,11 +375,12 @@ def _aggregate_by_oc(df: pd.DataFrame) -> pd.DataFrame:
         100.0,
     )
 
-    # Ordenar: vencidas primero, luego por fecha, luego menor FR
-    agg["_sort_venc"]  = agg["es_vencida"].astype(int) * -1
-    agg["_sort_fecha"] = agg["fecha_despacho"].fillna(pd.Timestamp("2099-12-31"))
-    agg.sort_values(["_sort_venc", "_sort_fecha", "fill_rate"], inplace=True)
-    agg.drop(columns=["_sort_venc", "_sort_fecha"], inplace=True)
+    # Ordenar: vencidas primero, luego por cliente+fecha (para agrupar despachos del mismo cliente), luego menor FR
+    agg["_sort_venc"]    = agg["es_vencida"].astype(int) * -1
+    agg["_sort_fecha"]   = agg["fecha_despacho"].fillna(pd.Timestamp("2099-12-31"))
+    agg["_sort_cliente"] = agg["cliente"].str.lower().fillna("")
+    agg.sort_values(["_sort_venc", "_sort_cliente", "_sort_fecha", "fill_rate"], inplace=True)
+    agg.drop(columns=["_sort_venc", "_sort_fecha", "_sort_cliente"], inplace=True)
     agg.reset_index(drop=True, inplace=True)
 
     return agg
@@ -417,7 +418,14 @@ def get_week_closed_df() -> pd.DataFrame:
         else:
             closed[flag] = False
 
-    return _aggregate_by_oc(closed)
+    agg = _aggregate_by_oc(closed)
+    if not agg.empty and "cliente" in agg.columns:
+        agg["_sc"] = agg["cliente"].str.lower().fillna("")
+        agg["_sf"] = agg["fecha_despacho"].fillna(pd.Timestamp("2099-12-31"))
+        agg.sort_values(["_sc", "_sf"], inplace=True)
+        agg.drop(columns=["_sc", "_sf"], inplace=True)
+        agg.reset_index(drop=True, inplace=True)
+    return agg
 
 
 def get_bo_detail_df() -> pd.DataFrame:
