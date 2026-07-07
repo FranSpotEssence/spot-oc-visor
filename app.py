@@ -857,7 +857,7 @@ def api_fr_consulta():
             estado_por_despacho[despacho_key] = "CERRADA" if list(estados) == ["CERRADA"] else "PENDIENTE"
 
     ocs = []
-    for _, r in oc_grp.sort_values("fecha_despacho", ascending=False).iterrows():
+    for _, r in oc_grp.sort_values(["cliente", "fecha_despacho"], ascending=[True, False]).iterrows():
         sol = float(r["un_sol"])
         fr  = round(float(r["un_asig"]) / sol * 100, 1) if sol > 0 else 0.0
         despacho_key = (str(r["oc"]), str(r["cliente"]), str(r["fecha_despacho"]))
@@ -1241,7 +1241,7 @@ def api_fr_mes():
             "skus":         skus,
         })
 
-    ocs.sort(key=lambda x: x["_fd_sort"])
+    ocs.sort(key=lambda x: (x["cliente"].lower(), x["_fd_sort"]))
     for o in ocs: del o["_fd_sort"]
 
     return jsonify({"kpis": kpis, "clientes": clientes_list, "ocs": ocs})
