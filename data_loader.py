@@ -340,9 +340,13 @@ def get_pending_df() -> pd.DataFrame:
 
 
 def _aggregate_by_oc(df: pd.DataFrame) -> pd.DataFrame:
-    """Agrupa líneas SKU por OC para la tabla principal."""
+    """Agrupa líneas SKU por (OC, cliente, fecha_despacho) — cada combinación es un despacho único."""
     if df.empty:
         return df
+
+    # Normalizar fecha_despacho para el agrupador (NaT → centinela)
+    df = df.copy()
+    df["_fd_key"] = df["fecha_despacho"].fillna(pd.Timestamp("2099-12-31"))
 
     agg_dict = dict(
         fecha_despacho=("fecha_despacho", "first"),
@@ -362,7 +366,8 @@ def _aggregate_by_oc(df: pd.DataFrame) -> pd.DataFrame:
     if "valor_facturado" in df.columns:
         agg_dict["valor_facturado"] = ("valor_facturado", "sum")
 
-    agg = df.groupby(["oc", "cliente"], as_index=False).agg(**agg_dict)
+    agg = df.groupby(["oc", "cliente", "_fd_key"], as_index=False).agg(**agg_dict)
+    agg.drop(columns=["_fd_key"], inplace=True)
 
     agg["fill_rate"] = np.where(
         agg["un_solicitadas"] > 0,

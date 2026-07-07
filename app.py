@@ -541,13 +541,15 @@ def api_fr_historico():
         })
 
     # ── By-client aggregation (filtered period) ─────────────────
+    dfw_m = dfw_m.copy()
+    dfw_m["_dk"] = dfw_m["oc"].astype(str) + "|" + dfw_m["cliente"].astype(str) + "|" + dfw_m["fecha_despacho"].astype(str)
     cgrp = dfw_m.groupby("cliente").agg(
         un_sol    =("un_solicitadas",  "sum"),
         un_asig   =("un_asignadas",    "sum"),
         bo_val    =("bo_valorizado",   "sum"),
         val_tot   =("valor_total",     "sum"),
         val_fac   =("valor_facturado", "sum"),
-        despachos =("oc",              "nunique"),
+        despachos =("_dk",             "nunique"),
     ).reset_index()
     by_client = []
     for _, r in cgrp.iterrows():
@@ -608,13 +610,15 @@ def api_fr_historico():
         by_product.sort(key=lambda x: x["fr"])  # peor a mejor (ascendente)
 
     # ── By-client weekly ────────────────────────────────────────
+    dfw_w = dfw_w.copy()
+    dfw_w["_dk"] = dfw_w["oc"].astype(str) + "|" + dfw_w["cliente"].astype(str) + "|" + dfw_w["fecha_despacho"].astype(str)
     _cgrp_w = dfw_w.groupby("cliente").agg(
         un_sol   =("un_solicitadas",  "sum"),
         un_asig  =("un_asignadas",    "sum"),
         bo_val   =("bo_valorizado",   "sum"),
         val_tot  =("valor_total",     "sum"),
         val_fac  =("valor_facturado", "sum"),
-        despachos=("oc",              "nunique"),
+        despachos=("_dk",             "nunique"),
     ).reset_index()
     by_client_w = []
     for _, _r in _cgrp_w.iterrows():
@@ -844,26 +848,27 @@ def api_fr_consulta():
         val_fac =("valor_facturado", "sum"),
     ).reset_index()
 
-    # Estado por OC: CERRADA solo si todas las líneas son CERRADA
-    estado_por_oc = {}
+    # Estado por despacho (oc+cliente+fecha): CERRADA solo si todas las líneas son CERRADA
+    estado_por_despacho = {}
     if "estado" in dfw.columns:
-        for oc_key, grp in dfw.groupby("oc"):
+        for (oc_k, cli_k, fd_k), grp in dfw.groupby(["oc", "cliente", "fecha_despacho"]):
             estados = grp["estado"].str.upper().unique()
-            estado_por_oc[str(oc_key)] = "CERRADA" if list(estados) == ["CERRADA"] else "PENDIENTE"
+            despacho_key = (str(oc_k), str(cli_k), str(fd_k))
+            estado_por_despacho[despacho_key] = "CERRADA" if list(estados) == ["CERRADA"] else "PENDIENTE"
 
     ocs = []
     for _, r in oc_grp.sort_values("fecha_despacho", ascending=False).iterrows():
         sol = float(r["un_sol"])
         fr  = round(float(r["un_asig"]) / sol * 100, 1) if sol > 0 else 0.0
-        oc_key = str(r["oc"])
+        despacho_key = (str(r["oc"]), str(r["cliente"]), str(r["fecha_despacho"]))
         ocs.append({
-            "oc":      oc_key,
+            "oc":      str(r["oc"]),
             "cliente": r["cliente"],
             "fecha":   r["fecha_despacho"].strftime("%d/%m/%Y"),
             "val_tot": float(r["val_tot"]),
             "val_fac": float(r["val_fac"]),
             "fr":      fr,
-            "pendiente": estado_por_oc.get(oc_key, "CERRADA") != "CERRADA",
+            "pendiente": estado_por_despacho.get(despacho_key, "CERRADA") != "CERRADA",
         })
 
     # Detalle por producto cuando hay OC exacta
@@ -1176,7 +1181,7 @@ def api_fr_mes():
             "venta_facturada_mtd":       round(fac, 0),
             "venta_facturada_retail_mtd": round(fac_retail, 0),
             "venta_perdida_mtd":         round(perdida, 0),
-            "n_ocs_despachadas":         int(df_scope["oc"].nunique()),
+            "n_ocs_despachadas":         int(df_scope.drop_duplicates(subset=["oc", "cliente", "fecha_despacho"]).shape[0]),
             "mes_label":                 mes_label,
             "fr_ant":                    fr_ant,
             "ant_label":                 ant_label,
@@ -1187,7 +1192,7 @@ def api_fr_mes():
 
     # ── OCs con SKU detail ─────────────────────────────────────────
     ocs = []
-    for (oc_id, cliente), grp in df_mes.groupby(["oc", "cliente"]):
+    for (oc_id, cliente, _), grp in df_mes.groupby(["oc", "cliente", "fecha_despacho"]):
         o_sol   = float(grp["un_solicitadas"].sum())
         o_asig  = float(grp["un_asignadas"].sum())
         o_fr    = round(o_asig / o_sol * 100, 1) if o_sol > 0 else 100.0

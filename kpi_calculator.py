@@ -75,8 +75,13 @@ def compute_kpis(df: pd.DataFrame) -> dict:
     asig_mes = df_mes["un_asignadas"].sum()
     fr_mes   = round((asig_mes / sol_mes * 100), 1) if sol_mes > 0 else 0.0
 
-    # 2. OC en Curso — cantidad de OCs pendientes distintas
-    oc_en_curso = df_pend["oc"].nunique() if "oc" in df_pend.columns else 0
+    # 2. OC en Curso — despachos únicos pendientes (oc + cliente + fecha_despacho)
+    if "oc" in df_pend.columns and "cliente" in df_pend.columns and "fecha_despacho" in df_pend.columns:
+        oc_en_curso = df_pend.drop_duplicates(subset=["oc", "cliente", "fecha_despacho"]).shape[0]
+    elif "oc" in df_pend.columns:
+        oc_en_curso = df_pend["oc"].nunique()
+    else:
+        oc_en_curso = 0
 
     # 3. Fill Rate de OC en Curso (todas las pendientes)
     sol_pend  = df_pend["un_solicitadas"].sum()
@@ -88,7 +93,12 @@ def compute_kpis(df: pd.DataFrame) -> dict:
     sol_pm  = df_pend_mes["un_solicitadas"].sum() if not df_pend_mes.empty else 0
     asig_pm = df_pend_mes["un_asignadas"].sum()   if not df_pend_mes.empty else 0
     fr_pend_mes = round((asig_pm / sol_pm * 100), 1) if sol_pm > 0 else 0.0
-    oc_pend_mes = df_pend_mes["oc"].nunique() if not df_pend_mes.empty and "oc" in df_pend_mes.columns else 0
+    if not df_pend_mes.empty and "oc" in df_pend_mes.columns and "cliente" in df_pend_mes.columns:
+        oc_pend_mes = df_pend_mes.drop_duplicates(subset=["oc", "cliente", "fecha_despacho"]).shape[0]
+    elif not df_pend_mes.empty and "oc" in df_pend_mes.columns:
+        oc_pend_mes = df_pend_mes["oc"].nunique()
+    else:
+        oc_pend_mes = 0
 
     # 4. Valorizado de OC en Curso (suma valor_total)
     val_en_curso = _safe_sum(df_pend, "valor_total")
@@ -165,11 +175,17 @@ def _bo_por_producto(df: pd.DataFrame) -> list:
     if df_bo.empty:
         return []
 
+    # Contar despachos únicos por (oc, cliente, fecha_despacho)
+    df_bo["_despacho_key"] = (
+        df_bo["oc"].astype(str) + "|" +
+        df_bo.get("cliente", pd.Series("", index=df_bo.index)).astype(str) + "|" +
+        df_bo["fecha_despacho"].astype(str)
+    )
     grp = df_bo.groupby("producto").agg(
         bo_un=("bo_un", "sum"),
         un_sol=("un_solicitadas", "sum"),
         un_asig=("un_asignadas", "sum"),
-        n_ocs=("oc", "nunique"),
+        n_ocs=("_despacho_key", "nunique"),
     ).reset_index()
 
     grp["fr"] = np.where(
