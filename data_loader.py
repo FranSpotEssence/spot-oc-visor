@@ -73,8 +73,16 @@ def refresh_data(force: bool = False) -> bool:
             else:
                 log.info("Iniciando descarga del Excel desde OneDrive...")
                 excel_bytes   = download_excel_bytes()
-                file_modified = get_file_last_modified()
+                modified_iso  = get_file_last_modified()
                 df            = _parse_excel(io.BytesIO(excel_bytes))
+                try:
+                    file_modified = (
+                        pd.Timestamp(modified_iso, tz="UTC")
+                        .tz_convert(_TZ_CL)
+                        .strftime("%d-%b-%Y %H:%M")
+                    ) if modified_iso else None
+                except Exception:
+                    file_modified = modified_iso
                 with _lock:
                     _cache["file_modified"] = file_modified
 

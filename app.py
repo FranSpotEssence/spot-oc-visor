@@ -1326,7 +1326,8 @@ def _load_tracking_pt_source() -> tuple["pd.DataFrame", str, str]:
         file_modified = "—"
         if modified_iso:
             try:
-                file_modified = pd.Timestamp(modified_iso).strftime("%d-%b-%Y %H:%M")
+                ts = pd.Timestamp(modified_iso, tz="UTC").tz_convert(_TZ_CL)
+                file_modified = ts.strftime("%d-%b-%Y %H:%M")
             except Exception:
                 file_modified = modified_iso
         return df, file_name, file_modified
