@@ -7,7 +7,10 @@ import logging
 import os
 import threading
 from datetime import datetime, date
+from zoneinfo import ZoneInfo
 import pandas as pd
+
+_TZ_CL = ZoneInfo("America/Santiago")
 import numpy as np
 from config import Config
 from graph_client import download_excel_bytes, get_file_last_modified
@@ -77,7 +80,7 @@ def refresh_data(force: bool = False) -> bool:
 
         with _lock:
             _cache["df"]         = df
-            _cache["updated_at"] = datetime.now()
+            _cache["updated_at"] = datetime.now(_TZ_CL)
             _cache["error"]      = None
         log.info(f"Datos cargados: {len(df):,} filas")
         return True
@@ -86,7 +89,7 @@ def refresh_data(force: bool = False) -> bool:
         log.error(f"Error cargando Excel: {e}", exc_info=True)
         with _lock:
             _cache["error"]      = str(e)
-            _cache["updated_at"] = datetime.now()
+            _cache["updated_at"] = datetime.now(_TZ_CL)
         return False
     finally:
         with _lock:

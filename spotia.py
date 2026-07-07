@@ -4,9 +4,12 @@ Construye contexto completo desde el DataFrame en memoria y consulta Claude API.
 """
 import os
 import logging
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 import pandas as pd
+
+_TZ_CL = ZoneInfo("America/Santiago")
 
 log = logging.getLogger(__name__)
 
@@ -32,7 +35,7 @@ def build_context(df: pd.DataFrame, cliente_ctx: str = "") -> str:
     if df is None or df.empty:
         return "No hay datos cargados actualmente."
 
-    today   = pd.Timestamp(date.today())
+    today   = pd.Timestamp(datetime.now(_TZ_CL).date())
     cur_y   = today.year
     cur_m   = today.month
     dfall   = df.copy()

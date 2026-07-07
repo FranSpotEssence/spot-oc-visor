@@ -2,10 +2,13 @@
 Cálculo de KPIs y semáforos para el dashboard ejecutivo SPOT.
 """
 import logging
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 import pandas as pd
 import numpy as np
 from config import Config
+
+_TZ_CL = ZoneInfo("America/Santiago")
 
 log = logging.getLogger(__name__)
 
@@ -59,7 +62,7 @@ def compute_kpis(df: pd.DataFrame) -> dict:
     if df is None or df.empty:
         return _empty_kpis()
 
-    today     = pd.Timestamp(date.today())
+    today     = pd.Timestamp(datetime.now(_TZ_CL).date())
     mes_ini   = today.replace(day=1)
     mes_fin   = (mes_ini + pd.offsets.MonthEnd(1))
 

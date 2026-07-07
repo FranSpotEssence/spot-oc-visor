@@ -6,6 +6,15 @@ import logging
 import os
 from datetime import datetime, date
 from functools import wraps
+from zoneinfo import ZoneInfo
+
+_TZ_CL = ZoneInfo("America/Santiago")
+
+def _now_cl() -> datetime:
+    return datetime.now(_TZ_CL)
+
+def _today_cl() -> date:
+    return _now_cl().date()
 
 import pandas as pd
 from flask import Flask, jsonify, render_template, request, session, redirect, url_for
@@ -70,7 +79,7 @@ def _refresh_all_data():
 
 
 # ── Scheduler (refresh automático) ───────────────────────────────
-scheduler = BackgroundScheduler(daemon=True)
+scheduler = BackgroundScheduler(daemon=True, timezone=_TZ_CL)
 scheduler.add_job(
     func=_refresh_all_data,
     trigger="interval",
@@ -361,8 +370,8 @@ def api_fr_historico():
         dfw = dfw[dfw["_year"] == int(year)]
 
     # MTD: mes actual solo hasta hoy; meses cerrados usan datos completos
-    from datetime import date as _date, timedelta as _td
-    _today = _date.today()
+    from datetime import timedelta as _td
+    _today = _today_cl()
     _today_ts  = pd.Timestamp(_today)
     _is_cur_mo = (dfw["_year"] == _today.year) & (dfw["_month"] == _today.month)
     dfw = dfw[~_is_cur_mo | (dfw["fecha_despacho"] <= _today_ts)]
@@ -1015,7 +1024,7 @@ def api_export_fr_historico_csv():
     return Response(
         "﻿" + output.getvalue(),
         mimetype="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f"attachment;filename=spot_fr_historico_{tipo}_{date.today()}.csv"}
+        headers={"Content-Disposition": f"attachment;filename=spot_fr_historico_{tipo}_{_today_cl()}.csv"}
     )
 
 
@@ -1076,7 +1085,7 @@ def api_export_backorder_csv():
     return Response(
         "﻿" + output.getvalue(),
         mimetype="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f"attachment;filename=spot_backorder_detalle_{date.today()}.csv"}
+        headers={"Content-Disposition": f"attachment;filename=spot_backorder_detalle_{_today_cl()}.csv"}
     )
 
 
@@ -1101,7 +1110,7 @@ def api_export_csv():
     return Response(
         "﻿" + output.getvalue(),   # BOM para Excel
         mimetype="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f"attachment;filename=spot_oc_pendientes_{date.today()}.csv"}
+        headers={"Content-Disposition": f"attachment;filename=spot_oc_pendientes_{_today_cl()}.csv"}
     )
 
 
@@ -1115,7 +1124,7 @@ def api_fr_mes():
 
     from kpi_calculator import semaforo_fr, fr_chip_class, _CLIENTES_VENTA_PERDIDA
 
-    today   = pd.Timestamp(date.today())
+    today   = pd.Timestamp(_today_cl())
     mes_ini = today.replace(day=1)
     mes_fin = mes_ini + pd.offsets.MonthEnd(1)
     mes_label = _mes_largo(today)
@@ -1334,7 +1343,7 @@ def _load_tracking_pt_source() -> tuple["pd.DataFrame", str, str]:
     os.remove(tmp_path)
     file_name = os.path.basename(local_path)
     try:
-        file_modified = datetime.fromtimestamp(os.path.getmtime(local_path)).strftime("%d-%b-%Y %H:%M")
+        file_modified = datetime.fromtimestamp(os.path.getmtime(local_path), tz=_TZ_CL).strftime("%d-%b-%Y %H:%M")
     except OSError:
         file_modified = "—"
     return df, file_name, file_modified
