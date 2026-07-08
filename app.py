@@ -160,6 +160,7 @@ def _pending_to_json(df: pd.DataFrame) -> list:
             "oc":              str(r.get("oc", "")),
             "cliente":         str(r.get("cliente", "")),
             "fecha_despacho":  _fmt_date(r.get("fecha_despacho")),
+            "fecha_iso":       r.get("fecha_despacho").strftime("%Y-%m-%d") if pd.notna(r.get("fecha_despacho")) else "",
             "fecha_clase":     fecha_clase,
             "dias_vencer":     int(dias) if pd.notna(dias) else None,
             "fill_rate":       fr,
@@ -252,9 +253,10 @@ def api_orders():
 @_login_required
 def api_order_detail(oc_id: str):
     """Detalle SKU de una OC específica (drill-down)."""
-    df      = get_df()
-    cliente = request.args.get("cliente", "").strip()
-    detail  = compute_oc_detail(df, oc_id, cliente)
+    df           = get_df()
+    cliente      = request.args.get("cliente",      "").strip()
+    fecha_iso    = request.args.get("fecha",        "").strip()
+    detail  = compute_oc_detail(df, oc_id, cliente, fecha_iso)
     return jsonify(detail)
 
 

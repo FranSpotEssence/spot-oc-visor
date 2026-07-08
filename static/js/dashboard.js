@@ -230,7 +230,7 @@ function renderTable(orders) {
     const cerrada = (r.estado || "").toUpperCase() === "CERRADA";
     const clienteCls = cerrada ? "c-green" : "c-yellow";
     return `
-    <tr onclick="openDetail('${esc(r.oc)}','${esc(r.cliente)}')">
+    <tr onclick="openDetail('${esc(r.oc)}','${esc(r.cliente)}','${esc(r.fecha_iso||'')}')">
       <td><span class="cliente-chip ${clienteCls}">${esc(r.cliente)}</span></td>
       <td class="font-mono">${esc(r.oc)}</td>
       <td class="${r.fecha_clase}">${esc(r.fecha_despacho)}</td>
@@ -238,7 +238,7 @@ function renderTable(orders) {
       <td class="col-money">${fmtMoney(r.valor_total)}</td>
       <td class="col-money">${fmtMoney(r.valor_facturado)}</td>
       <td class="col-money ${r.bo_valorizado > 0 ? 'bo-val-warn' : ''}">${fmtMoney(r.bo_valorizado)}</td>
-      <td><button class="detail-btn" onclick="event.stopPropagation();openDetail('${esc(r.oc)}','${esc(r.cliente)}')">Ver →</button></td>
+      <td><button class="detail-btn" onclick="event.stopPropagation();openDetail('${esc(r.oc)}','${esc(r.cliente)}','${esc(r.fecha_iso||'')}')">Ver →</button></td>
     </tr>
   `;
   }).join("");
@@ -498,7 +498,7 @@ function filterByCliente(nombre) {
 }
 
 // ── DRILL-DOWN MODAL ──────────────────────────────────────────
-async function openDetail(ocId, cliente) {
+async function openDetail(ocId, cliente, fechaIso) {
   const modal = new bootstrap.Modal(document.getElementById("ocModal"));
   const body  = document.getElementById("modalBody");
 
@@ -509,8 +509,11 @@ async function openDetail(ocId, cliente) {
   modal.show();
 
   try {
-    const clienteParam = cliente ? `?cliente=${encodeURIComponent(cliente)}` : "";
-    const res  = await fetch(`/api/orders/${encodeURIComponent(ocId)}${clienteParam}`);
+    const params = new URLSearchParams();
+    if (cliente) params.set("cliente", cliente);
+    if (fechaIso) params.set("fecha", fechaIso);
+    const qstr = params.toString() ? "?" + params.toString() : "";
+    const res  = await fetch(`/api/orders/${encodeURIComponent(ocId)}${qstr}`);
     const d    = await res.json();
 
     if (d.error) {

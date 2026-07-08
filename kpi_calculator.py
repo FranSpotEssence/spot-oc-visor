@@ -231,7 +231,7 @@ def _fr_por_cliente(df: pd.DataFrame) -> list:
     ]
 
 
-def compute_oc_detail(df: pd.DataFrame, oc_id: str, cliente: str = "") -> dict:
+def compute_oc_detail(df: pd.DataFrame, oc_id: str, cliente: str = "", fecha_iso: str = "") -> dict:
     """Detalle SKU para el drill-down de una OC."""
     if df is None or df.empty:
         return {}
@@ -240,6 +240,11 @@ def compute_oc_detail(df: pd.DataFrame, oc_id: str, cliente: str = "") -> dict:
     df_oc  = df[mask].copy()
     if cliente:
         df_oc = df_oc[df_oc["cliente"] == cliente]
+    if fecha_iso and "fecha_despacho" in df_oc.columns:
+        try:
+            df_oc = df_oc[df_oc["fecha_despacho"] == pd.Timestamp(fecha_iso)]
+        except Exception:
+            pass
 
     if df_oc.empty:
         return {"error": f"OC {oc_id} no encontrada"}
