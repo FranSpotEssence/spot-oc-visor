@@ -180,6 +180,7 @@ function renderKPIs(d) {
 async function loadOrders() {
   try {
     const res  = await fetch("/api/orders");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const all  = data.orders || [];
 
