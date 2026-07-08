@@ -208,12 +208,35 @@ def _generate_hist_rows(today: pd.Timestamp) -> list:
 
 def _parse_excel(buf: io.BytesIO) -> pd.DataFrame:
     """Lee el Excel y normaliza los datos."""
-    df = pd.read_excel(
-        buf,
-        sheet_name=Config.SHEET_NAME,
-        header=Config.HEADER_ROW,
-        engine="openpyxl",
-    )
+    try:
+        df = pd.read_excel(
+            buf,
+            sheet_name=Config.SHEET_NAME,
+            header=Config.HEADER_ROW,
+            engine="openpyxl",
+        )
+    except Exception as e:
+        if "wildcard" in str(e) or "numerical" in str(e):
+            # El Excel tiene validaciones de datos que openpyxl no puede parsear.
+            # Reintentamos cargando el workbook directamente y limpiando las validaciones.
+            buf.seek(0)
+            import openpyxl
+            wb = openpyxl.load_workbook(buf, data_only=True, read_only=False)
+            sheet = Config.SHEET_NAME
+            ws = wb[sheet] if isinstance(sheet, str) else wb.worksheets[sheet]
+            ws.data_validations.dataValidation = []
+            import io as _io
+            tmp = _io.BytesIO()
+            wb.save(tmp)
+            tmp.seek(0)
+            df = pd.read_excel(
+                tmp,
+                sheet_name=0,
+                header=Config.HEADER_ROW,
+                engine="openpyxl",
+            )
+        else:
+            raise
 
     # Renombrar columnas según mapa
     rename = {k: v for k, v in Config.COL_MAP.items() if k in df.columns}
