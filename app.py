@@ -217,8 +217,16 @@ def api_kpis():
 @_login_required
 def api_orders():
     """OCs pendientes + OCs cerradas de la semana actual para la tabla principal."""
-    pending_rows = _pending_to_json(get_pending_df())
-    closed_rows  = _pending_to_json(get_week_closed_df())
+    try:
+        pending_rows = _pending_to_json(get_pending_df())
+    except Exception as e:
+        log.exception("Error en get_pending_df: %s", e)
+        pending_rows = []
+    try:
+        closed_rows = _pending_to_json(get_week_closed_df())
+    except Exception as e:
+        log.exception("Error en get_week_closed_df: %s", e)
+        closed_rows = []
     # Cerradas van al final; el frontend también las ordena así
     rows = pending_rows + closed_rows
 
