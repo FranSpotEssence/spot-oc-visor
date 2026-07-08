@@ -196,6 +196,10 @@ async function loadOrders() {
     renderTable(STATE.orders);
   } catch (e) {
     console.error("Error cargando órdenes:", e);
+    const tbody = document.getElementById("ocTableBody");
+    if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-muted">Error al cargar órdenes: ${e.message}</td></tr>`;
+    const tbody2 = document.getElementById("ocTableBody2");
+    if (tbody2) tbody2.innerHTML = tbody ? tbody.innerHTML : "";
   }
 }
 
