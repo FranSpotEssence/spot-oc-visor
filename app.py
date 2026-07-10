@@ -78,13 +78,31 @@ def _refresh_all_data():
     _tracking_pt_cache = None
 
 
-# ── Scheduler (refresh automático) ───────────────────────────────
+# ── Invalidación diaria de sesiones (02:00 AM Chile) ─────────────
+# Todas las sesiones creadas ANTES de este timestamp se consideran expiradas.
+_sessions_invalidated_at: datetime = datetime.min.replace(tzinfo=_TZ_CL)
+
+def _invalidate_all_sessions():
+    global _sessions_invalidated_at
+    _sessions_invalidated_at = _now_cl()
+    log.info("Sesiones invalidadas a las %s — todos los usuarios deben re-autenticarse", _sessions_invalidated_at.strftime("%H:%M"))
+
+
+# ── Scheduler (refresh automático + invalidación de sesiones) ─────
 scheduler = BackgroundScheduler(daemon=True, timezone=_TZ_CL)
 scheduler.add_job(
     func=_refresh_all_data,
     trigger="interval",
     minutes=Config.REFRESH_INTERVAL,
     id="refresh_excel",
+    replace_existing=True,
+)
+scheduler.add_job(
+    func=_invalidate_all_sessions,
+    trigger="cron",
+    hour=2,
+    minute=0,
+    id="invalidate_sessions",
     replace_existing=True,
 )
 scheduler.start()
@@ -115,6 +133,21 @@ def _login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if not session.get("user_email"):
+            return redirect(url_for("login"))
+        # Verificar que la sesión no fue invalidada por el job de las 02:00 AM
+        login_at_str = session.get("login_at")
+        if login_at_str:
+            try:
+                login_at = datetime.fromisoformat(login_at_str)
+                if login_at < _sessions_invalidated_at:
+                    session.clear()
+                    return redirect(url_for("login"))
+            except Exception:
+                session.clear()
+                return redirect(url_for("login"))
+        else:
+            # Sesión sin timestamp (legacy) → forzar re-login
+            session.clear()
             return redirect(url_for("login"))
         return f(*args, **kwargs)
     return decorated
@@ -173,6 +206,7 @@ def auth_callback():
     session.pop("oauth_state", None)
     session["user_email"] = email
     session["user_name"]  = claims.get("name", email)
+    session["login_at"]   = _now_cl().isoformat()
     log.info("Login exitoso: %s", email)
     return redirect(url_for("index"))
 
