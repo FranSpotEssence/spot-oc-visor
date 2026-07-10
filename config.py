@@ -23,7 +23,13 @@ class Config:
     # App
     REFRESH_INTERVAL = int(os.getenv("REFRESH_INTERVAL_MINUTES", "60"))
     SECRET_KEY       = os.getenv("SECRET_KEY", "spot-essence-secret-2024")
-    APP_PASSWORD     = ""  # Sin contraseña — acceso directo
+    APP_PASSWORD     = ""  # Sin contraseña — se usa OAuth Microsoft
+
+    # Auth Microsoft OAuth
+    # Dominio de correo permitido para acceder al visor
+    ALLOWED_EMAIL_DOMAIN = os.getenv("ALLOWED_EMAIL_DOMAIN", "spotessence.cl")
+    # URL base de la app (Railway); se usa para construir el redirect URI
+    APP_BASE_URL = os.getenv("APP_BASE_URL", "")  # ej: https://mi-app.railway.app
 
     # Semaphore thresholds
     FR_GREEN  = 95.0   # >= 95%  → verde

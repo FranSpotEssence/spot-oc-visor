@@ -94,27 +94,87 @@ log.info("Carga inicial de datos...")
 refresh_data()
 
 
-# ── Auth ─────────────────────────────────────────────────────────
+# ── Auth Microsoft OAuth ──────────────────────────────────────────
+
+import msal, uuid
+
+def _msal_app():
+    return msal.ConfidentialClientApplication(
+        Config.CLIENT_ID,
+        authority=f"https://login.microsoftonline.com/{Config.TENANT_ID}",
+        client_credential=Config.CLIENT_SECRET,
+    )
+
+def _redirect_uri():
+    base = Config.APP_BASE_URL.rstrip("/")
+    if not base:
+        base = request.host_url.rstrip("/")
+    return base + "/auth/callback"
 
 def _login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        if Config.APP_PASSWORD and not session.get("authenticated"):
+        if not session.get("user_email"):
             return redirect(url_for("login"))
         return f(*args, **kwargs)
     return decorated
 
 
-@app.route("/login", methods=["GET", "POST"])
+@app.route("/login")
 def login():
-    error = None
-    if request.method == "POST":
-        pwd = request.form.get("password", "")
-        if pwd == Config.APP_PASSWORD:
-            session["authenticated"] = True
-            return redirect(url_for("index"))
-        error = "Contraseña incorrecta"
-    return render_template("login.html", error=error)
+    return render_template("login.html")
+
+
+@app.route("/auth/start")
+def auth_start():
+    """Inicia el flujo OAuth redirigiendo a Microsoft."""
+    state = str(uuid.uuid4())
+    session["oauth_state"] = state
+    auth_url = _msal_app().get_authorization_request_url(
+        scopes=["User.Read"],
+        state=state,
+        redirect_uri=_redirect_uri(),
+    )
+    return redirect(auth_url)
+
+
+@app.route("/auth/callback")
+def auth_callback():
+    """Recibe el código de Azure AD, obtiene el token y verifica el email."""
+    error = request.args.get("error")
+    if error:
+        desc = request.args.get("error_description", error)
+        log.warning("OAuth error: %s", desc)
+        return render_template("login.html", error=f"Error de autenticación: {desc}")
+
+    if request.args.get("state") != session.get("oauth_state"):
+        return render_template("login.html", error="Estado OAuth inválido. Intenta nuevamente.")
+
+    code = request.args.get("code", "")
+    result = _msal_app().acquire_token_by_authorization_code(
+        code,
+        scopes=["User.Read"],
+        redirect_uri=_redirect_uri(),
+    )
+
+    if "error" in result:
+        log.warning("Token error: %s — %s", result.get("error"), result.get("error_description"))
+        return render_template("login.html", error="No se pudo obtener el token. Intenta nuevamente.")
+
+    claims = result.get("id_token_claims", {})
+    email  = (claims.get("preferred_username") or claims.get("email") or "").lower().strip()
+
+    if not email.endswith(f"@{Config.ALLOWED_EMAIL_DOMAIN}"):
+        log.warning("Acceso denegado: %s no es del dominio permitido", email)
+        return render_template("login.html",
+            error=f"Acceso restringido a correos @{Config.ALLOWED_EMAIL_DOMAIN}. "
+                  f"Tu cuenta ({email}) no tiene permiso.")
+
+    session.pop("oauth_state", None)
+    session["user_email"] = email
+    session["user_name"]  = claims.get("name", email)
+    log.info("Login exitoso: %s", email)
+    return redirect(url_for("index"))
 
 
 @app.route("/logout")
