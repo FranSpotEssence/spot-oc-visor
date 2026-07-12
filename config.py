@@ -31,8 +31,11 @@ class Config:
     # URL base de la app (Railway); se usa para construir el redirect URI
     APP_BASE_URL = os.getenv("APP_BASE_URL", "")  # ej: https://mi-app.railway.app
 
-    # Forecast Accuracy — carpeta local con los 2 archivos Excel (Forecast + Venta Real)
-    FA_DATA_FOLDER = os.getenv("FA_DATA_FOLDER", r"C:\Users\FranciscaLagos\OneDrive - Spot Essence\Escritorio\FA Data")
+    # Forecast Accuracy — carpeta local con los 2 archivos Excel (Forecast + Venta Real S&OP)
+    FA_DATA_FOLDER = os.getenv(
+        "FA_DATA_FOLDER",
+        r"C:\Users\FranciscaLagos\OneDrive - Spot Essence\Escritorio\S&OP\Reporte CLAUDE"
+    )
 
     # Semaphore thresholds
     FR_GREEN  = 95.0   # >= 95%  → verde
