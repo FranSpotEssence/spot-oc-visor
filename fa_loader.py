@@ -37,6 +37,7 @@ log = logging.getLogger(__name__)
 
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 
+
 # ── Caché en memoria ──────────────────────────────────────────────
 _fa_cache: Optional[dict] = None
 
@@ -93,27 +94,22 @@ def _extract_ultimo_mes(filename: str) -> Optional[pd.Timestamp]:
 
 
 # ══════════════════════════════════════════════════════════════════
-#  DESCARGA DESDE ONEDRIVE
+#  DESCARGA DESDE SHAREPOINT (link compartido)
 # ══════════════════════════════════════════════════════════════════
 
-def _get_graph_token() -> str:
-    from graph_client import _get_token
-    return _get_token()
-
-
-def _download_fa_from_onedrive() -> tuple[bytes, str, bytes, str]:
+def _download_fa_from_sharepoint() -> tuple[bytes, str, bytes, str]:
     """
-    Lista la carpeta OneDrive configurada y descarga los 2 archivos FA.
+    Lista la carpeta SharePoint via share-link y descarga los 2 archivos FA.
     Retorna (forecast_bytes, forecast_name, sop_bytes, sop_name).
     """
+    from graph_client import _encode_share_url, download_file_content
+
     token   = _get_graph_token()
     headers = {"Authorization": f"Bearer {token}"}
-    user    = Config.USER_EMAIL
-    folder  = Config.FA_ONEDRIVE_FOLDER.strip("/")
-    encoded = requests.utils.quote(folder, safe="/")
+    share_id = _encode_share_url(Config.FA_SHAREPOINT_FOLDER_URL)
 
-    # Listar archivos en la carpeta
-    url  = f"{GRAPH_BASE}/users/{user}/drive/root:/{encoded}:/children"
+    # Listar archivos en la carpeta compartida
+    url  = f"{GRAPH_BASE}/shares/{share_id}/driveItem/children"
     resp = requests.get(url, headers=headers, timeout=30)
     resp.raise_for_status()
     items = [
@@ -123,7 +119,7 @@ def _download_fa_from_onedrive() -> tuple[bytes, str, bytes, str]:
     ]
 
     if not items:
-        raise FileNotFoundError(f"No se encontraron archivos .xlsx en OneDrive:{folder}")
+        raise FileNotFoundError("No se encontraron archivos .xlsx en la carpeta SharePoint FA")
 
     # Identificar forecast y S&OP
     fc_item = sop_item = None
@@ -143,28 +139,20 @@ def _download_fa_from_onedrive() -> tuple[bytes, str, bytes, str]:
             sop_item = next((x for x in sorted_items if x is not fc_item), sorted_items[-1])
 
     if fc_item is None:
-        raise FileNotFoundError("No se encontró archivo de Forecast en OneDrive")
+        raise FileNotFoundError("No se encontró el archivo de Forecast en SharePoint")
     if sop_item is None:
-        raise FileNotFoundError("No se encontró archivo S&OP en OneDrive")
+        raise FileNotFoundError("No se encontró el archivo S&OP en SharePoint")
 
-    log.info("FA OneDrive: forecast=%s | sop=%s", fc_item["name"], sop_item["name"])
+    log.info("FA SharePoint: forecast=%s | sop=%s", fc_item["name"], sop_item["name"])
+    return (
+        download_file_content(fc_item), fc_item["name"],
+        download_file_content(sop_item), sop_item["name"],
+    )
 
-    def _dl(item: dict) -> bytes:
-        dl_url = item.get("@microsoft.graph.downloadUrl")
-        if dl_url:
-            r = requests.get(dl_url, timeout=120)
-            r.raise_for_status()
-            return r.content
-        drive_id = item["parentReference"]["driveId"]
-        item_id  = item["id"]
-        r = requests.get(
-            f"{GRAPH_BASE}/drives/{drive_id}/items/{item_id}/content",
-            headers=headers, timeout=120
-        )
-        r.raise_for_status()
-        return r.content
 
-    return _dl(fc_item), fc_item["name"], _dl(sop_item), sop_item["name"]
+def _get_graph_token() -> str:
+    from graph_client import _get_token
+    return _get_token()
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -559,25 +547,25 @@ def get_fa_data(force: bool = False) -> dict:
     if _fa_cache is not None and not force:
         return _fa_cache
 
-    # 1 — Intentar OneDrive vía Graph API
+    # 1 — Intentar SharePoint via link compartido
     try:
-        fc_bytes, fc_name, sop_bytes, sop_name = _download_fa_from_onedrive()
+        fc_bytes, fc_name, sop_bytes, sop_name = _download_fa_from_sharepoint()
         ultimo_mes = _extract_ultimo_mes(sop_name)
         df_fc = _read_forecast(io.BytesIO(fc_bytes))
         df_vr = _read_venta_real(io.BytesIO(sop_bytes), ultimo_mes)
         result = _build_result(df_fc, df_vr, ultimo_mes, fc_name, sop_name)
-        result['source'] = 'onedrive'
+        result['source'] = 'sharepoint'
         _fa_cache = result
-        log.info("FA cargada desde OneDrive")
+        log.info("FA cargada desde SharePoint")
         return result
-    except Exception as e_od:
-        log.warning("OneDrive no disponible para FA (%s); intentando carpeta local…", e_od)
+    except Exception as e_sp:
+        log.warning("SharePoint no disponible para FA (%s); intentando carpeta local…", e_sp)
 
     # 2 — Fallback: carpeta local
     folder = Config.FA_DATA_FOLDER
     if not folder or not os.path.isdir(folder):
         err = {
-            'error': f"No se pudo acceder a OneDrive ({e_od}) y la carpeta local no está disponible.",
+            'error': f"No se pudo acceder a SharePoint ({e_sp}) y la carpeta local no está disponible.",
             **_empty_result(),
         }
         _fa_cache = err

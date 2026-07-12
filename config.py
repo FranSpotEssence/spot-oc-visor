@@ -31,9 +31,12 @@ class Config:
     # URL base de la app (Railway); se usa para construir el redirect URI
     APP_BASE_URL = os.getenv("APP_BASE_URL", "")  # ej: https://mi-app.railway.app
 
-    # Forecast Accuracy — carpeta en OneDrive (ruta relativa desde la raíz del OneDrive del usuario)
-    FA_ONEDRIVE_FOLDER = os.getenv("FA_ONEDRIVE_FOLDER", "Escritorio/S&OP/Reporte CLAUDE")
-    # Carpeta local de respaldo (se usa solo si OneDrive falla)
+    # Forecast Accuracy — link compartido de SharePoint (carpeta con los 2 archivos Excel)
+    FA_SHAREPOINT_FOLDER_URL = os.getenv(
+        "FA_SHAREPOINT_FOLDER_URL",
+        "https://spotessence1-my.sharepoint.com/:f:/g/personal/francisca_lagos_spotessence_cl/IgBDzTNDsUASRKl6sm_jGVImAWZqdx1AuuKBxkpAcil4SdY?e=dZIhra",
+    )
+    # Carpeta local de respaldo (solo para desarrollo local si SharePoint no está disponible)
     FA_DATA_FOLDER = os.getenv(
         "FA_DATA_FOLDER",
         r"C:\Users\FranciscaLagos\OneDrive - Spot Essence\Escritorio\S&OP\Reporte CLAUDE"
