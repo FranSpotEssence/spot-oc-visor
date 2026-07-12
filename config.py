@@ -31,7 +31,9 @@ class Config:
     # URL base de la app (Railway); se usa para construir el redirect URI
     APP_BASE_URL = os.getenv("APP_BASE_URL", "")  # ej: https://mi-app.railway.app
 
-    # Forecast Accuracy — carpeta local con los 2 archivos Excel (Forecast + Venta Real S&OP)
+    # Forecast Accuracy — carpeta en OneDrive (ruta relativa desde la raíz del OneDrive del usuario)
+    FA_ONEDRIVE_FOLDER = os.getenv("FA_ONEDRIVE_FOLDER", "Escritorio/S&OP/Reporte CLAUDE")
+    # Carpeta local de respaldo (se usa solo si OneDrive falla)
     FA_DATA_FOLDER = os.getenv(
         "FA_DATA_FOLDER",
         r"C:\Users\FranciscaLagos\OneDrive - Spot Essence\Escritorio\S&OP\Reporte CLAUDE"

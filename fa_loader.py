@@ -1,20 +1,26 @@
 """
 fa_loader.py — SPOT ESSENCE Forecast Accuracy
 Maneja los archivos reales del proceso S&OP:
-  • "Base Forecast Acuraccy.xlsx"  → hoja "Forecast Cliente": forecast cliente-SKU-mes (FEB-JUL 2026)
-  • "(NN) S&OP <MES> <AÑO> - CIERRE.xlsx" → hoja "S&OP": venta real unidades hasta último mes cerrado
+  • "Base Forecast Acuraccy.xlsx"  → hoja "Forecast Cliente": forecast cliente-SKU-mes
+  • "(NN) S&OP <MES> <AÑO> - CIERRE.xlsx" → hoja "S&OP": venta real unidades hasta último mes
 
 Estructura de ambos archivos:
   Fila 0: vacía / meta
   Fila 1: totales agregados
   Fila 2: ENCABEZADOS REALES (Razón Social, SKU, DESCRIPCIÓN, …, columnas datetime)
   Fila 3+: datos
+
+Origen de datos:
+  1. OneDrive del usuario (Config.FA_ONEDRIVE_FOLDER) — siempre se intenta primero
+  2. Carpeta local de respaldo (Config.FA_DATA_FOLDER) — si OneDrive no está disponible
 """
+import io
 import logging
 import os
 import re
+import requests
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 
 import pandas as pd
 
@@ -28,6 +34,8 @@ from fa_calculator import (
 )
 
 log = logging.getLogger(__name__)
+
+GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 
 # ── Caché en memoria ──────────────────────────────────────────────
 _fa_cache: Optional[dict] = None
@@ -54,64 +62,20 @@ def _mes_key(ts: pd.Timestamp) -> str:
 
 
 def _norm_str(v) -> str:
-    """Normaliza un valor a string limpio (strip + upper)."""
     if v is None:
         return ''
     s = str(v).strip()
-    if s.lower() in ('nan', 'none', ''):
-        return ''
-    return s
+    return '' if s.lower() in ('nan', 'none', '') else s
 
 
 def _norm_sku(v) -> str:
-    """Normaliza SKU: strip, sin .0 de float."""
     s = _norm_str(v)
-    if s.endswith('.0'):
-        s = s[:-2]
-    return s
+    return s[:-2] if s.endswith('.0') else s
 
 
-def _norm_cliente(v) -> str:
-    """Normaliza nombre de cliente para merge (upper + strip)."""
-    return _norm_str(v).upper()
-
-
-# ══════════════════════════════════════════════════════════════════
-#  DETECCIÓN DE ARCHIVOS
-# ══════════════════════════════════════════════════════════════════
-
+# ── Keywords de detección ─────────────────────────────────────────
 _KW_FORECAST = {'forecast', 'base forecast'}
 _KW_SOP      = {'s&op', 'sop', 'cierre'}
-
-
-def _find_files(folder: str) -> tuple[Optional[str], Optional[str]]:
-    """Retorna (path_forecast, path_sop)."""
-    if not os.path.isdir(folder):
-        raise FileNotFoundError(f"Carpeta no encontrada: {folder}")
-
-    files = [
-        os.path.join(folder, f)
-        for f in os.listdir(folder)
-        if f.lower().endswith(('.xlsx', '.xls')) and not f.startswith('~$')
-    ]
-    if not files:
-        raise FileNotFoundError(f"No se encontraron archivos Excel en: {folder}")
-
-    path_forecast = path_sop = None
-    for p in files:
-        name = os.path.basename(p).lower()
-        if any(kw in name for kw in _KW_FORECAST):
-            path_forecast = p
-        elif any(kw in name for kw in _KW_SOP):
-            path_sop = p
-
-    if path_forecast is None or path_sop is None:
-        # Fallback: hay exactamente 2 archivos
-        if len(files) == 2:
-            # El "forecast" suele tener menos columnas / ser más pequeño
-            path_forecast, path_sop = sorted(files)
-
-    return path_forecast, path_sop
 
 
 def _extract_ultimo_mes(filename: str) -> Optional[pd.Timestamp]:
@@ -129,23 +93,128 @@ def _extract_ultimo_mes(filename: str) -> Optional[pd.Timestamp]:
 
 
 # ══════════════════════════════════════════════════════════════════
-#  LECTURA DE ARCHIVOS
+#  DESCARGA DESDE ONEDRIVE
+# ══════════════════════════════════════════════════════════════════
+
+def _get_graph_token() -> str:
+    from graph_client import _get_token
+    return _get_token()
+
+
+def _download_fa_from_onedrive() -> tuple[bytes, str, bytes, str]:
+    """
+    Lista la carpeta OneDrive configurada y descarga los 2 archivos FA.
+    Retorna (forecast_bytes, forecast_name, sop_bytes, sop_name).
+    """
+    token   = _get_graph_token()
+    headers = {"Authorization": f"Bearer {token}"}
+    user    = Config.USER_EMAIL
+    folder  = Config.FA_ONEDRIVE_FOLDER.strip("/")
+    encoded = requests.utils.quote(folder, safe="/")
+
+    # Listar archivos en la carpeta
+    url  = f"{GRAPH_BASE}/users/{user}/drive/root:/{encoded}:/children"
+    resp = requests.get(url, headers=headers, timeout=30)
+    resp.raise_for_status()
+    items = [
+        it for it in resp.json().get("value", [])
+        if it.get("name", "").lower().endswith(".xlsx")
+        and not it["name"].startswith("~$")
+    ]
+
+    if not items:
+        raise FileNotFoundError(f"No se encontraron archivos .xlsx en OneDrive:{folder}")
+
+    # Identificar forecast y S&OP
+    fc_item = sop_item = None
+    for item in items:
+        name = item["name"].lower()
+        if any(kw in name for kw in _KW_FORECAST):
+            fc_item = item
+        elif any(kw in name for kw in _KW_SOP):
+            sop_item = item
+
+    # Fallback: orden alfabético
+    if (fc_item is None or sop_item is None) and len(items) >= 2:
+        sorted_items = sorted(items, key=lambda x: x["name"])
+        if fc_item is None:
+            fc_item = sorted_items[0]
+        if sop_item is None:
+            sop_item = next((x for x in sorted_items if x is not fc_item), sorted_items[-1])
+
+    if fc_item is None:
+        raise FileNotFoundError("No se encontró archivo de Forecast en OneDrive")
+    if sop_item is None:
+        raise FileNotFoundError("No se encontró archivo S&OP en OneDrive")
+
+    log.info("FA OneDrive: forecast=%s | sop=%s", fc_item["name"], sop_item["name"])
+
+    def _dl(item: dict) -> bytes:
+        dl_url = item.get("@microsoft.graph.downloadUrl")
+        if dl_url:
+            r = requests.get(dl_url, timeout=120)
+            r.raise_for_status()
+            return r.content
+        drive_id = item["parentReference"]["driveId"]
+        item_id  = item["id"]
+        r = requests.get(
+            f"{GRAPH_BASE}/drives/{drive_id}/items/{item_id}/content",
+            headers=headers, timeout=120
+        )
+        r.raise_for_status()
+        return r.content
+
+    return _dl(fc_item), fc_item["name"], _dl(sop_item), sop_item["name"]
+
+
+# ══════════════════════════════════════════════════════════════════
+#  DETECCIÓN DE ARCHIVOS LOCALES
+# ══════════════════════════════════════════════════════════════════
+
+def _find_local_files(folder: str) -> tuple[Optional[str], Optional[str]]:
+    """Retorna (path_forecast, path_sop) desde carpeta local."""
+    if not os.path.isdir(folder):
+        raise FileNotFoundError(f"Carpeta local no encontrada: {folder}")
+
+    files = [
+        os.path.join(folder, f)
+        for f in os.listdir(folder)
+        if f.lower().endswith(('.xlsx', '.xls')) and not f.startswith('~$')
+    ]
+    if not files:
+        raise FileNotFoundError(f"No hay archivos Excel en: {folder}")
+
+    fc_path = sop_path = None
+    for p in files:
+        name = os.path.basename(p).lower()
+        if any(kw in name for kw in _KW_FORECAST):
+            fc_path = p
+        elif any(kw in name for kw in _KW_SOP):
+            sop_path = p
+
+    if (fc_path is None or sop_path is None) and len(files) >= 2:
+        sorted_files = sorted(files)
+        if fc_path is None:
+            fc_path = sorted_files[0]
+        if sop_path is None:
+            sop_path = next((x for x in sorted_files if x != fc_path), sorted_files[-1])
+
+    return fc_path, sop_path
+
+
+# ══════════════════════════════════════════════════════════════════
+#  LECTURA DE ARCHIVOS (acepta ruta str o BytesIO)
 # ══════════════════════════════════════════════════════════════════
 
 def _map_id_cols(header_row: pd.Series) -> dict:
-    """
-    Detecta índices de columnas identificadoras a partir de la fila de encabezados.
-    Retorna dict nombre→índice.
-    """
     id_map = {}
     for idx, val in enumerate(header_row):
         if not isinstance(val, str):
             continue
         v = val.strip().upper()
-        # Razón Social / cliente
         if 'RAZ' in v and ('SOCIAL' in v or 'N SOCIAL' in v):
             id_map['cliente'] = idx
-        elif 'SKU' == v:
+        elif v == 'SKU':
             id_map['sku'] = idx
         elif 'DESCRIP' in v:
             id_map['descripcion'] = idx
@@ -155,90 +224,81 @@ def _map_id_cols(header_row: pd.Series) -> dict:
             id_map['categoria'] = idx
         elif 'MARCA' in v:
             id_map['marca'] = idx
-        elif 'CLASIFICACI' in v:
-            id_map['clasificacion'] = idx
-        elif 'AROMA' in v:
-            id_map['aroma'] = idx
     return id_map
 
 
-def _read_forecast(path: str) -> pd.DataFrame:
+def _read_forecast(src: Union[str, io.BytesIO]) -> pd.DataFrame:
     """
-    Lee "Base Forecast Acuraccy.xlsx", hoja 'Forecast Cliente'.
+    Lee hoja 'Forecast Cliente'.
+    Fila 2 (0-indexada) = encabezados reales con columnas datetime = meses de forecast.
     Retorna DataFrame largo: cliente_key, cliente, sku, descripcion, mes_ts, mes_key, mes_label, forecast
     """
-    df_raw = pd.read_excel(path, sheet_name='Forecast Cliente', header=None, dtype=object)
-
-    header_row = df_raw.iloc[2]  # fila real de encabezados
+    df_raw = pd.read_excel(src, sheet_name='Forecast Cliente', header=None, dtype=object)
+    header_row = df_raw.iloc[2]
     id_map = _map_id_cols(header_row)
 
-    # Columnas de fecha = forecast por mes
-    date_cols = {}  # col_idx → pd.Timestamp
+    date_cols = {}
     for idx, val in enumerate(header_row):
         if isinstance(val, datetime):
             date_cols[idx] = pd.Timestamp(val).replace(day=1)
 
     df_data = df_raw.iloc[3:].reset_index(drop=True)
 
-    # Construir base
     def _col(field):
-        return df_data.iloc[:, id_map[field]] if field in id_map else pd.Series([''] * len(df_data))
+        if field not in id_map:
+            return pd.Series([''] * len(df_data), dtype=object)
+        return df_data.iloc[:, id_map[field]]
 
     df_base = pd.DataFrame({
         'cliente':     _col('cliente').apply(_norm_str),
         'sku':         _col('sku').apply(_norm_sku),
         'descripcion': _col('descripcion').apply(_norm_str),
-        'ranking':     _col('ranking').apply(_norm_str) if 'ranking' in id_map else '',
-        'categoria':   _col('categoria').apply(_norm_str) if 'categoria' in id_map else '',
-        'marca':       _col('marca').apply(_norm_str) if 'marca' in id_map else '',
+        'ranking':     _col('ranking').apply(_norm_str),
+        'categoria':   _col('categoria').apply(_norm_str),
+        'marca':       _col('marca').apply(_norm_str),
     })
-
-    # Filtrar filas válidas (sku presente)
-    mask = df_base['sku'].notna() & (df_base['sku'] != '') & (df_base['sku'] != 'NAN')
+    mask = df_base['sku'].notna() & (df_base['sku'] != '') & (df_base['sku'].str.upper() != 'NAN')
     df_base = df_base[mask].copy()
     df_base['cliente_key'] = df_base['cliente'].str.upper().str.strip()
 
-    # Melt: un row por (cliente, sku, mes)
     parts = []
+    mask_vals = mask.values
     for col_idx, mes_ts in date_cols.items():
         vals = pd.to_numeric(df_data.iloc[:, col_idx].values, errors='coerce').astype(float)
         tmp = df_base.copy()
-        tmp['mes_ts']   = mes_ts
-        tmp['mes_key']  = _mes_key(mes_ts)
+        tmp['mes_ts']    = mes_ts
+        tmp['mes_key']   = _mes_key(mes_ts)
         tmp['mes_label'] = _mes_label(mes_ts)
-        tmp['forecast'] = vals[mask.values]
-        tmp['forecast'] = tmp['forecast'].fillna(0)
+        tmp['forecast']  = vals[mask_vals]
+        tmp['forecast']  = tmp['forecast'].fillna(0)
         parts.append(tmp)
 
     df_fc = pd.concat(parts, ignore_index=True)
-    log.info("Forecast leído: %d filas, %d meses, %d SKUs únicos, %d clientes",
-             len(df_fc), len(date_cols), df_fc['sku'].nunique(), df_fc['cliente'].nunique())
+    log.info("Forecast: %d filas, %d meses, %d SKUs, %d clientes",
+             len(df_fc), len(date_cols), df_fc['sku'].nunique(), df_fc['cliente_key'].nunique())
     return df_fc
 
 
-def _read_venta_real(path: str, ultimo_mes: Optional[pd.Timestamp]) -> pd.DataFrame:
+def _read_venta_real(src: Union[str, io.BytesIO], ultimo_mes: Optional[pd.Timestamp]) -> pd.DataFrame:
     """
-    Lee el archivo S&OP, hoja 'S&OP'.
-    Solo toma las columnas de UNIDADES (primer bloque de fechas, antes de 'Precio venta')
-    y filtra los meses ≤ ultimo_mes.
+    Lee hoja 'S&OP'. Toma solo columnas de UNIDADES (antes de 'Precio venta') ≤ ultimo_mes.
     Retorna DataFrame largo: cliente_key, cliente, sku, mes_ts, mes_key, mes_label, venta_real
     """
-    df_raw = pd.read_excel(path, sheet_name='S&OP', header=None, dtype=object)
-
+    df_raw = pd.read_excel(src, sheet_name='S&OP', header=None, dtype=object)
     header_row = df_raw.iloc[2]
     id_map = _map_id_cols(header_row)
 
-    # Encontrar columna 'Precio venta' para separar sección UN vs $
-    precio_venta_idx = None
-    for idx, val in enumerate(header_row):
-        if isinstance(val, str) and 'PRECIO' in val.strip().upper():
-            precio_venta_idx = idx
-            break
+    # Separador Precio venta
+    precio_idx = next(
+        (idx for idx, val in enumerate(header_row)
+         if isinstance(val, str) and 'PRECIO' in val.strip().upper()),
+        None
+    )
 
-    # Columnas de fecha de UNIDADES (solo antes de Precio venta y ≤ ultimo_mes)
+    # Columnas de UNIDADES (antes de Precio venta y ≤ ultimo_mes)
     date_cols = {}
     for idx, val in enumerate(header_row):
-        if precio_venta_idx is not None and idx >= precio_venta_idx:
+        if precio_idx is not None and idx >= precio_idx:
             break
         if isinstance(val, datetime):
             ts = pd.Timestamp(val).replace(day=1)
@@ -248,92 +308,89 @@ def _read_venta_real(path: str, ultimo_mes: Optional[pd.Timestamp]) -> pd.DataFr
     df_data = df_raw.iloc[3:].reset_index(drop=True)
 
     def _col(field):
-        return df_data.iloc[:, id_map[field]] if field in id_map else pd.Series([''] * len(df_data))
+        if field not in id_map:
+            return pd.Series([''] * len(df_data), dtype=object)
+        return df_data.iloc[:, id_map[field]]
 
     df_base = pd.DataFrame({
         'cliente':     _col('cliente').apply(_norm_str),
         'sku':         _col('sku').apply(_norm_sku),
-        'descripcion': _col('descripcion').apply(_norm_str) if 'descripcion' in id_map else '',
-        'ranking':     _col('ranking').apply(_norm_str) if 'ranking' in id_map else '',
-        'categoria':   _col('categoria').apply(_norm_str) if 'categoria' in id_map else '',
+        'descripcion': _col('descripcion').apply(_norm_str),
+        'ranking':     _col('ranking').apply(_norm_str),
+        'categoria':   _col('categoria').apply(_norm_str),
     })
-
-    mask = df_base['sku'].notna() & (df_base['sku'] != '') & (df_base['sku'] != 'NAN')
+    mask = df_base['sku'].notna() & (df_base['sku'] != '') & (df_base['sku'].str.upper() != 'NAN')
     df_base = df_base[mask].copy()
     df_base['cliente_key'] = df_base['cliente'].str.upper().str.strip()
 
     parts = []
+    mask_vals = mask.values
     for col_idx, mes_ts in date_cols.items():
         vals = pd.to_numeric(df_data.iloc[:, col_idx].values, errors='coerce').astype(float)
         tmp = df_base.copy()
-        tmp['mes_ts']    = mes_ts
-        tmp['mes_key']   = _mes_key(mes_ts)
-        tmp['mes_label'] = _mes_label(mes_ts)
-        tmp['venta_real'] = vals[mask.values]
+        tmp['mes_ts']     = mes_ts
+        tmp['mes_key']    = _mes_key(mes_ts)
+        tmp['mes_label']  = _mes_label(mes_ts)
+        tmp['venta_real'] = vals[mask_vals]
         tmp['venta_real'] = tmp['venta_real'].fillna(0)
         parts.append(tmp)
 
     df_vr = pd.concat(parts, ignore_index=True)
-    log.info("Venta real leída: %d filas, %d meses, %d SKUs únicos, %d clientes",
-             len(df_vr), len(date_cols), df_vr['sku'].nunique(), df_vr['cliente'].nunique())
+    log.info("Venta real: %d filas, %d meses, %d SKUs, %d clientes",
+             len(df_vr), len(date_cols), df_vr['sku'].nunique(), df_vr['cliente_key'].nunique())
     return df_vr
 
 
 # ══════════════════════════════════════════════════════════════════
-#  PROCESAMIENTO
+#  PROCESAMIENTO PRINCIPAL
 # ══════════════════════════════════════════════════════════════════
 
-def _process(path_forecast: str, path_sop: str) -> dict:
-    ultimo_mes = _extract_ultimo_mes(path_sop)
-    log.info("Último mes cerrado: %s", ultimo_mes)
+def _build_result(df_fc: pd.DataFrame, df_vr: pd.DataFrame,
+                  ultimo_mes: Optional[pd.Timestamp],
+                  fc_name: str, sop_name: str) -> dict:
+    """Merge, calcula FA y construye todas las agregaciones."""
 
-    df_fc = _read_forecast(path_forecast)
-    df_vr = _read_venta_real(path_sop, ultimo_mes)
-
-    # Agregar por (cliente_key, sku, mes_key) antes del merge
     agg_fc = df_fc.groupby(['cliente_key', 'sku', 'mes_key', 'mes_ts', 'mes_label']).agg(
-        forecast    = ('forecast', 'sum'),
+        forecast    = ('forecast',    'sum'),
         descripcion = ('descripcion', 'first'),
-        cliente     = ('cliente', 'first'),
-        ranking     = ('ranking', 'first'),
-        categoria   = ('categoria', 'first'),
-        marca       = ('marca', 'first'),
+        cliente     = ('cliente',     'first'),
+        ranking     = ('ranking',     'first'),
+        categoria   = ('categoria',   'first'),
+        marca       = ('marca',       'first'),
     ).reset_index()
 
     agg_vr = df_vr.groupby(['cliente_key', 'sku', 'mes_key']).agg(
         venta_real = ('venta_real', 'sum'),
     ).reset_index()
 
-    # Merge por (cliente_key, sku, mes_key)
     df = pd.merge(agg_fc, agg_vr, on=['cliente_key', 'sku', 'mes_key'], how='inner')
 
     if df.empty:
-        fc_meses = sorted(df_fc['mes_key'].unique())
-        vr_meses = sorted(df_vr['mes_key'].unique())
+        fc_meses = sorted(df_fc['mes_key'].unique().tolist())
+        vr_meses = sorted(df_vr['mes_key'].unique().tolist())
         return {
             'error': (
-                f"No hay meses en común entre Forecast ({fc_meses}) "
-                f"y Venta Real ({vr_meses}). "
-                f"Verifica que el archivo S&OP corresponda al período del Forecast."
+                f"Sin meses en común entre Forecast ({fc_meses}) "
+                f"y Venta Real ({vr_meses})."
             ),
-            **_empty_result(path_forecast, path_sop),
+            **_empty_result(fc_name, sop_name),
         }
 
-    # Normalizar nombre de cliente: usar cliente_key (uppercase) como nombre canónico
+    # Normalizar cliente (usar cliente_key = uppercase)
     df['cliente'] = df['cliente_key']
 
-    # FA fila a fila
+    # FA
     df['fa']        = compute_fa_series(df, 'forecast', 'venta_real')
     df['error_abs'] = (df['venta_real'] - df['forecast']).abs()
     df['mes_ts']    = pd.to_datetime(df['mes_ts'])
     df = df.sort_values('mes_ts').reset_index(drop=True)
 
-    meses_ordered = sorted(df['mes_key'].unique())
+    meses_ordered = sorted(df['mes_key'].unique().tolist())
     mes_labels    = df.drop_duplicates('mes_key').set_index('mes_key')['mes_label'].to_dict()
-    clientes      = sorted(df['cliente'].unique())
-    skus          = sorted(df['sku'].unique())
+    clientes      = sorted(df['cliente'].unique().tolist())
+    skus          = sorted(df['sku'].unique().tolist())
 
-    log.info("FA procesada: %d filas, %d meses, %d SKUs, %d clientes",
+    log.info("FA result: %d filas, %d meses, %d SKUs, %d clientes",
              len(df), len(meses_ordered), len(skus), len(clientes))
 
     return {
@@ -346,20 +403,19 @@ def _process(path_forecast: str, path_sop: str) -> dict:
         'clientes':          clientes,
         'meses':             [{'key': k, 'label': mes_labels[k]} for k in meses_ordered],
         'skus':              skus,
-        'archivo_forecast':  os.path.basename(path_forecast),
-        'archivo_venta':     os.path.basename(path_sop),
+        'archivo_forecast':  fc_name,
+        'archivo_venta':     sop_name,
         'ultimo_mes':        _mes_label(ultimo_mes) if ultimo_mes else '—',
         'updated_at':        datetime.now().strftime('%d-%b-%Y %H:%M'),
         'error':             None,
     }
 
 
-def _empty_result(pf='', ps=''):
+def _empty_result(fc_name='—', sop_name='—'):
     return {
         'kpis': {}, 'trend': [], 'sku_table': [], 'cliente_sku_table': [],
         'ranking': {}, 'heatmap': {}, 'clientes': [], 'meses': [], 'skus': [],
-        'archivo_forecast': os.path.basename(pf) if pf else '—',
-        'archivo_venta': os.path.basename(ps) if ps else '—',
+        'archivo_forecast': fc_name, 'archivo_venta': sop_name,
         'ultimo_mes': '—', 'updated_at': None,
     }
 
@@ -371,7 +427,7 @@ def _empty_result(pf='', ps=''):
 def _build_kpis(df: pd.DataFrame, meses: list, labels: dict) -> dict:
     if not meses:
         return {}
-    ultimo  = meses[-1]
+    ultimo   = meses[-1]
     anterior = meses[-2] if len(meses) >= 2 else None
 
     df_ult = df[df['mes_key'] == ultimo]
@@ -385,8 +441,7 @@ def _build_kpis(df: pd.DataFrame, meses: list, labels: dict) -> dict:
     variacion = round(fa_ult - fa_ant, 1) if (fa_ult is not None and fa_ant is not None) else None
     tendencia = ('up' if variacion and variacion > 0 else
                  'down' if variacion and variacion < 0 else 'flat')
-
-    fa_total = fa_from_df(df, 'forecast', 'venta_real') if not df.empty else None
+    fa_total  = fa_from_df(df, 'forecast', 'venta_real') if not df.empty else None
 
     return {
         'fa_ultimo_mes': fa_ult,
@@ -425,25 +480,20 @@ def _build_sku_table(df: pd.DataFrame, meses_ordered: list) -> list:
     rows = []
     for sku, grp in df.groupby('sku', sort=True):
         fa_total = fa_from_df(grp, 'forecast', 'venta_real')
-        desc     = grp['descripcion'].mode()[0] if not grp['descripcion'].empty else ''
-        rank     = grp['ranking'].mode()[0] if 'ranking' in grp.columns and not grp['ranking'].empty else ''
-        cat      = grp['categoria'].mode()[0] if 'categoria' in grp.columns and not grp['categoria'].empty else ''
-
-        trend_vals = []
+        desc  = grp['descripcion'].mode()[0] if not grp['descripcion'].empty else ''
+        rank  = grp['ranking'].mode()[0]  if 'ranking'  in grp.columns else ''
+        cat   = grp['categoria'].mode()[0] if 'categoria' in grp.columns else ''
+        trend = []
         for mes_key in ultimos:
             dg = grp[grp['mes_key'] == mes_key]
-            trend_vals.append(fa_from_df(dg, 'forecast', 'venta_real') if not dg.empty else None)
-
+            trend.append(fa_from_df(dg, 'forecast', 'venta_real') if not dg.empty else None)
         rows.append({
-            'sku':         str(sku),
-            'descripcion': str(desc),
-            'ranking':     str(rank),
-            'categoria':   str(cat),
-            'forecast':    round(float(grp['forecast'].sum()), 0),
-            'venta':       round(float(grp['venta_real'].sum()), 0),
-            'fa':          fa_total,
-            'fa_color':    fa_chip_class(fa_total),
-            'trend':       trend_vals,
+            'sku': str(sku), 'descripcion': str(desc), 'ranking': str(rank), 'categoria': str(cat),
+            'forecast': round(float(grp['forecast'].sum()), 0),
+            'venta':    round(float(grp['venta_real'].sum()), 0),
+            'fa':       fa_total,
+            'fa_color': fa_chip_class(fa_total),
+            'trend':    trend,
         })
     rows.sort(key=lambda r: (r['fa'] or 0))
     return rows
@@ -456,15 +506,11 @@ def _build_cliente_sku_table(df: pd.DataFrame) -> list:
         desc = grp['descripcion'].mode()[0] if not grp['descripcion'].empty else ''
         ml   = grp['mes_label'].iloc[0] if 'mes_label' in grp.columns else ''
         rows.append({
-            'cliente':     str(cliente),
-            'sku':         str(sku),
-            'descripcion': str(desc),
-            'mes':         str(mes_key),
-            'mes_label':   str(ml),
-            'forecast':    round(float(grp['forecast'].sum()), 0),
-            'venta':       round(float(grp['venta_real'].sum()), 0),
-            'fa':          fa,
-            'fa_color':    fa_chip_class(fa),
+            'cliente': str(cliente), 'sku': str(sku), 'descripcion': str(desc),
+            'mes': str(mes_key), 'mes_label': str(ml),
+            'forecast': round(float(grp['forecast'].sum()), 0),
+            'venta':    round(float(grp['venta_real'].sum()), 0),
+            'fa':       fa, 'fa_color': fa_chip_class(fa),
         })
     rows.sort(key=lambda r: (r['cliente'], r['mes'], r['sku']))
     return rows
@@ -477,22 +523,15 @@ def _build_ranking(df: pd.DataFrame, top_n: int = 10) -> dict:
     df_ult = df[df['mes_key'] == ultimo_mes]
     if df_ult.empty:
         df_ult = df
-
     sku_fa = []
     for sku, grp in df_ult.groupby('sku'):
         fa   = fa_from_df(grp, 'forecast', 'venta_real')
         desc = grp['descripcion'].mode()[0] if not grp['descripcion'].empty else ''
         clis = ', '.join(sorted(grp['cliente'].unique().tolist())[:3])
-        sku_fa.append({
-            'sku': str(sku), 'descripcion': str(desc),
-            'clientes': clis, 'fa': fa, 'fa_color': fa_chip_class(fa),
-        })
-
+        sku_fa.append({'sku': str(sku), 'descripcion': str(desc),
+                       'clientes': clis, 'fa': fa, 'fa_color': fa_chip_class(fa)})
     sku_fa.sort(key=lambda x: (x['fa'] or 0))
-    return {
-        'peores':  sku_fa[:top_n],
-        'mejores': list(reversed(sku_fa[-top_n:])),
-    }
+    return {'peores': sku_fa[:top_n], 'mejores': list(reversed(sku_fa[-top_n:]))}
 
 
 def _build_heatmap(df: pd.DataFrame, clientes: list, meses_ordered: list, mes_labels: dict) -> dict:
@@ -507,10 +546,7 @@ def _build_heatmap(df: pd.DataFrame, clientes: list, meses_ordered: list, mes_la
             'values':  row_vals,
             'colors':  [fa_heatmap_color(v) if v is not None else '#f5f5f5' for v in row_vals],
         })
-    return {
-        'meses':  [mes_labels.get(k, k) for k in meses_ordered],
-        'matrix': matrix,
-    }
+    return {'meses': [mes_labels.get(k, k) for k in meses_ordered], 'matrix': matrix}
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -523,31 +559,50 @@ def get_fa_data(force: bool = False) -> dict:
     if _fa_cache is not None and not force:
         return _fa_cache
 
+    # 1 — Intentar OneDrive vía Graph API
+    try:
+        fc_bytes, fc_name, sop_bytes, sop_name = _download_fa_from_onedrive()
+        ultimo_mes = _extract_ultimo_mes(sop_name)
+        df_fc = _read_forecast(io.BytesIO(fc_bytes))
+        df_vr = _read_venta_real(io.BytesIO(sop_bytes), ultimo_mes)
+        result = _build_result(df_fc, df_vr, ultimo_mes, fc_name, sop_name)
+        result['source'] = 'onedrive'
+        _fa_cache = result
+        log.info("FA cargada desde OneDrive")
+        return result
+    except Exception as e_od:
+        log.warning("OneDrive no disponible para FA (%s); intentando carpeta local…", e_od)
+
+    # 2 — Fallback: carpeta local
     folder = Config.FA_DATA_FOLDER
-    if not folder:
-        err = {'error': 'FA_DATA_FOLDER no está configurada.', **_empty_result()}
+    if not folder or not os.path.isdir(folder):
+        err = {
+            'error': f"No se pudo acceder a OneDrive ({e_od}) y la carpeta local no está disponible.",
+            **_empty_result(),
+        }
+        _fa_cache = err
         return err
 
     try:
-        path_fc, path_sop = _find_files(folder)
-        if path_fc is None:
-            raise FileNotFoundError('No se encontró el archivo de Forecast en la carpeta.')
-        if path_sop is None:
-            raise FileNotFoundError('No se encontró el archivo S&OP en la carpeta.')
-
-        result = _process(path_fc, path_sop)
+        fc_path, sop_path = _find_local_files(folder)
+        ultimo_mes = _extract_ultimo_mes(sop_path)
+        df_fc = _read_forecast(fc_path)
+        df_vr = _read_venta_real(sop_path, ultimo_mes)
+        result = _build_result(df_fc, df_vr, ultimo_mes,
+                               os.path.basename(fc_path), os.path.basename(sop_path))
+        result['source'] = 'local'
         _fa_cache = result
+        log.info("FA cargada desde carpeta local")
         return result
-
-    except Exception as e:
-        log.exception("Error cargando FA data: %s", e)
-        err = {'error': str(e), **_empty_result()}
+    except Exception as e_local:
+        log.exception("Error cargando FA local: %s", e_local)
+        err = {'error': str(e_local), **_empty_result()}
         _fa_cache = err
         return err
 
 
 def refresh_fa_data() -> dict:
-    """Fuerza recarga desde disco. Llamada por el botón 'Actualizar información'."""
+    """Fuerza recarga. Llamada por el botón 'Actualizar información'."""
     global _fa_cache
     _fa_cache = None
     return get_fa_data(force=True)
