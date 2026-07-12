@@ -1437,3 +1437,157 @@ body {
 .doh-ok   { color:#16a34a; font-weight:700; }
 .doh-low  { color:#dc2626; font-weight:700; }
 .doh-high { color:#ca8a04; font-weight:600; }
+
+/* ════════════════════════════════════════════════════════════════
+   FORECAST ACCURACY MODULE
+════════════════════════════════════════════════════════════════ */
+
+/* ── Heatmap ─────────────────────────────────────────────────── */
+.fa-heatmap-table {
+  border-collapse: collapse;
+  font-size: 11px;
+  min-width: 100%;
+}
+.fa-heatmap-table th,
+.fa-heatmap-table td {
+  border: 1px solid #e8e8e8;
+  padding: 0;
+  white-space: nowrap;
+}
+.fa-hm-cliente-col {
+  background: #fafafa;
+  font-weight: 700;
+  font-size: 10px;
+  color: #555;
+  padding: 6px 12px;
+  min-width: 140px;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  border-right: 2px solid #e0e0e0;
+}
+.fa-hm-mes-col {
+  background: #f5f5f5;
+  font-weight: 700;
+  font-size: 10px;
+  color: #555;
+  padding: 5px 10px;
+  text-align: center;
+  min-width: 70px;
+}
+.fa-hm-cliente {
+  background: #fff;
+  font-weight: 600;
+  font-size: 11px;
+  padding: 5px 12px;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  border-right: 2px solid #e0e0e0;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fa-hm-cell {
+  text-align: center;
+  font-weight: 700;
+  font-size: 11px;
+  padding: 5px 8px;
+  min-width: 70px;
+  transition: opacity .15s;
+}
+.fa-hm-cell:hover { opacity: .8; }
+
+/* ── Leyenda heatmap ─────────────────────────────────────────── */
+.fa-leg-chip {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid #ddd;
+  vertical-align: middle;
+}
+
+/* ── Ranking ─────────────────────────────────────────────────── */
+.fa-rank-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: #aaa;
+  margin-bottom: 6px;
+}
+.fa-rank-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid #f5f5f5;
+}
+.fa-rank-item:last-child { border-bottom: none; }
+.fa-rank-pos {
+  width: 18px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 800;
+  color: #bbb;
+  flex-shrink: 0;
+}
+.fa-rank-info {
+  flex: 1;
+  min-width: 0;
+}
+.fa-rank-sku {
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fa-rank-desc {
+  font-size: 10px;
+  color: #999;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+.fa-rank-bar-wrap {
+  height: 4px;
+  background: #f0f0f0;
+  border-radius: 2px;
+  margin-top: 3px;
+  overflow: hidden;
+}
+.fa-rank-bar {
+  height: 4px;
+  border-radius: 2px;
+  transition: width .4s ease;
+}
+.fa-rank-val {
+  font-size: 12px;
+  font-weight: 800;
+  flex-shrink: 0;
+  min-width: 42px;
+  text-align: right;
+}
+.fa-rank-empty {
+  font-size: 11px;
+  color: #aaa;
+  padding: 8px 0;
+}
+
+/* ── Sparkline (tendencia SKU) ───────────────────────────────── */
+.fa-spark-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  justify-content: center;
+}
+.fa-spark-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}

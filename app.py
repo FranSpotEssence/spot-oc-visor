@@ -1576,6 +1576,80 @@ def api_tracking_pt_refresh():
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
+# ══════════════════════════════════════════════════════════════════
+#  FORECAST ACCURACY — API
+# ══════════════════════════════════════════════════════════════════
+
+from fa_loader import get_fa_data, refresh_fa_data
+
+
+@app.route("/api/fa/data")
+@_login_required
+def api_fa_data():
+    """Retorna todos los datos FA procesados (usa caché si disponible)."""
+    data = get_fa_data()
+    return jsonify(data)
+
+
+@app.route("/api/fa/refresh", methods=["POST"])
+@_login_required
+def api_fa_refresh():
+    """Fuerza recarga de los archivos FA desde disco."""
+    log.info("FA refresh manual solicitado por %s", session.get("user_email"))
+    data = refresh_fa_data()
+    return jsonify({
+        "ok":          data.get("error") is None,
+        "error":       data.get("error"),
+        "updated_at":  data.get("updated_at"),
+        "n_meses":     len(data.get("meses", [])),
+        "n_skus":      len(data.get("skus", [])),
+        "archivo_forecast": data.get("archivo_forecast"),
+        "archivo_venta":    data.get("archivo_venta"),
+    })
+
+
+@app.route("/api/fa/export/sku")
+@_login_required
+def api_fa_export_sku():
+    """Descarga tabla FA por SKU como CSV."""
+    import csv, io as _io
+    data = get_fa_data()
+    rows = data.get("sku_table", [])
+    output = _io.StringIO()
+    fields = ["sku", "descripcion", "forecast", "venta", "fa"]
+    writer = csv.DictWriter(output, fieldnames=fields)
+    writer.writeheader()
+    for r in rows:
+        writer.writerow({f: r.get(f, "") for f in fields})
+    from flask import Response
+    return Response(
+        "﻿" + output.getvalue(),
+        mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f"attachment;filename=spot_fa_sku_{_today_cl()}.csv"}
+    )
+
+
+@app.route("/api/fa/export/cliente-sku")
+@_login_required
+def api_fa_export_cliente_sku():
+    """Descarga tabla FA Cliente-SKU como CSV."""
+    import csv, io as _io
+    data = get_fa_data()
+    rows = data.get("cliente_sku_table", [])
+    output = _io.StringIO()
+    fields = ["cliente", "sku", "descripcion", "mes_label", "forecast", "venta", "fa"]
+    writer = csv.DictWriter(output, fieldnames=fields)
+    writer.writeheader()
+    for r in rows:
+        writer.writerow({f: r.get(f, "") for f in fields})
+    from flask import Response
+    return Response(
+        "﻿" + output.getvalue(),
+        mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f"attachment;filename=spot_fa_cliente_sku_{_today_cl()}.csv"}
+    )
+
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
