@@ -1765,7 +1765,7 @@ function frChipBo(fr) {
 
 // ── SECCIONES ─────────────────────────────────────────────────
 function showSection(name) {
-  const sections = ["dashboard","fillrate","backorder","bodetalle","frhistorico","frmes","spotia","trackingpt"];
+  const sections = ["dashboard","fillrate","backorder","bodetalle","frhistorico","frmes","spotia","trackingpt","fa"];
   sections.forEach(s => {
     const el = document.getElementById(`section${cap(s)}`);
     if (el) el.classList.toggle("d-none", s !== name);
