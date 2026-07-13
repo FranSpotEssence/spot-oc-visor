@@ -30,6 +30,14 @@
     return FA_COLORS.red;
   }
 
+  function faSClass(fa) {
+    if (fa === null || fa === undefined) return 'neu';
+    if (fa >= 80) return 'green';
+    if (fa >= 60) return 'yellow';
+    if (fa >= 40) return 'orange';
+    return 'red';
+  }
+
   function faChipHtml(fa, cls) {
     if (fa === null || fa === undefined) return '<span class="pct-chip pct-red">—</span>';
     const c = cls || (fa >= 80 ? 'pct-green' : fa >= 60 ? 'pct-yellow' : fa >= 40 ? 'pct-orange' : 'pct-red');
@@ -122,20 +130,17 @@
     const faTotal = kpis.fa_total;
     const variac  = kpis.variacion;
     const tend    = kpis.tendencia;
-    const col     = faColorByVal(fa);
 
-    // KPI principal
-    const vEl = document.getElementById('faKpiValue');
-    if (vEl) {
-      vEl.textContent = fa !== null && fa !== undefined ? fa.toFixed(1) + '%' : '—';
-      vEl.style.color = col.text;
-    }
+    // KPI principal (kpi-fr — mismo estilo que Fill Rate)
     const mEl = document.getElementById('faKpiMain');
-    if (mEl) {
-      mEl.style.borderLeftColor = col.border;
-      const lbl = document.querySelector('#faKpiMain .kpi-label');
-      if (lbl) lbl.textContent = 'FA ' + (kpis.mes_label || 'Último Mes');
-    }
+    if (mEl) mEl.className = 'kpi-fr c-' + faSClass(fa);
+
+    const vEl = document.getElementById('faKpiValue');
+    if (vEl) vEl.textContent = fa !== null && fa !== undefined ? fa.toFixed(1) + '%' : '—';
+
+    const lblEl = document.getElementById('faKpiMesLabel');
+    if (lblEl) lblEl.textContent = kpis.mes_label || '';
+
     const sEl = document.getElementById('faKpiSub');
     if (sEl) {
       if (kpis.fa_mes_ant !== null && kpis.fa_mes_ant !== undefined) {
@@ -146,25 +151,24 @@
     }
 
     // FA Total
+    const totCard = document.getElementById('faKpiTotal')?.closest('.kpi-s');
+    if (totCard) totCard.className = 'kpi-s s-' + faSClass(faTotal);
     const totEl  = document.getElementById('faKpiTotal');
     const totSub = document.getElementById('faKpiTotalSub');
-    if (totEl) {
-      totEl.textContent = faTotal !== null && faTotal !== undefined ? faTotal.toFixed(1) + '%' : '—';
-      totEl.style.color = faColorByVal(faTotal).text;
-    }
+    if (totEl) totEl.textContent = faTotal !== null && faTotal !== undefined ? faTotal.toFixed(1) + '%' : '—';
     if (totSub) totSub.textContent = `${kpis.n_meses || 0} meses`;
 
     // Variación
+    const varCard = document.getElementById('faKpiVarCard');
+    if (varCard) varCard.className = 'kpi-s s-' + (variac > 0 ? 'green' : variac < 0 ? 'red' : 'neu');
     const varEl  = document.getElementById('faKpiVar');
     const varSub = document.getElementById('faKpiVarSub');
     if (varEl) {
       if (variac !== null && variac !== undefined) {
         const sign = variac > 0 ? '+' : '';
         varEl.textContent = sign + variac.toFixed(1) + '%';
-        varEl.style.color = variac > 0 ? '#16a34a' : variac < 0 ? '#dc2626' : '#565454';
       } else {
         varEl.textContent = '—';
-        varEl.style.color = '';
       }
     }
     if (varSub && tend) {

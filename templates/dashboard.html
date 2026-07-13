@@ -671,26 +671,38 @@
       <div id="faError" class="error-banner d-none"></div>
 
       <!-- ── KPI Principal ── -->
-      <div class="kpi-row" id="faKpiRow">
-        <div class="kpi-card kpi-wide" id="faKpiMain">
-          <div class="kpi-label">FA Último Mes</div>
-          <div class="kpi-value" id="faKpiValue">—</div>
-          <div class="kpi-sub" id="faKpiSub"></div>
+      <div class="kpi-grid" id="faKpiRow" style="grid-template-columns:2fr 1fr 1fr 1fr">
+        <div class="kpi-fr" id="faKpiMain">
+          <div>
+            <div class="fr-main-label">FA — Último Mes</div>
+            <div class="fr-main-value" id="faKpiValue">—</div>
+            <div class="fr-main-sub" id="faKpiSub"></div>
+          </div>
+          <span class="fr-main-badge" id="faKpiMesLabel"></span>
         </div>
-        <div class="kpi-card">
-          <div class="kpi-label">FA Total Histórico</div>
-          <div class="kpi-value" id="faKpiTotal">—</div>
-          <div class="kpi-sub" id="faKpiTotalSub"></div>
+        <div class="kpi-s s-neu">
+          <div>
+            <div class="kpi-s-lbl">FA Total Histórico</div>
+            <div class="kpi-s-val" id="faKpiTotal">—</div>
+            <div class="kpi-s-sub" id="faKpiTotalSub"></div>
+          </div>
+          <div class="kpi-s-dot"></div>
         </div>
-        <div class="kpi-card">
-          <div class="kpi-label">Variación vs Mes Anterior</div>
-          <div class="kpi-value" id="faKpiVar">—</div>
-          <div class="kpi-sub" id="faKpiVarSub"></div>
+        <div class="kpi-s s-neu" id="faKpiVarCard">
+          <div>
+            <div class="kpi-s-lbl">Variación vs Mes Anterior</div>
+            <div class="kpi-s-val" id="faKpiVar">—</div>
+            <div class="kpi-s-sub" id="faKpiVarSub"></div>
+          </div>
+          <div class="kpi-s-dot"></div>
         </div>
-        <div class="kpi-card">
-          <div class="kpi-label">Meses analizados</div>
-          <div class="kpi-value" id="faKpiMeses">—</div>
-          <div class="kpi-sub" id="faKpiMesesSub"></div>
+        <div class="kpi-s s-neu">
+          <div>
+            <div class="kpi-s-lbl">Meses Analizados</div>
+            <div class="kpi-s-val" id="faKpiMeses">—</div>
+            <div class="kpi-s-sub" id="faKpiMesesSub"></div>
+          </div>
+          <div class="kpi-s-dot"></div>
         </div>
       </div>
 
