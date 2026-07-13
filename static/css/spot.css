@@ -1592,6 +1592,10 @@ body {
   flex-shrink: 0;
 }
 
+/* ── Filtro de periodo (Desde/Hasta) ──────────────────────────── */
+.fa-period-panel { margin-bottom: 16px; }
+.fa-period-panel .panel-head { flex-wrap: nowrap; }
+
 /* ── Sub-pestañas Nivel SKU / Nivel Cliente ──────────────────── */
 .fa-subtabs {
   display: flex;

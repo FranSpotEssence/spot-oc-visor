@@ -8,12 +8,15 @@
 
   /* ── Estado local ─────────────────────────────────────────────── */
   const FA = {
-    data:          null,   // payload completo del API
+    data:          null,   // payload completo del API (incluye 'raw': detalle cliente-sku-mes)
+    view:          null,   // datos recalculados según el rango de meses seleccionado
     chartInstance: null,   // Chart.js instance
     skuRows:       [],     // filas para la tabla SKU (cacheadas)
     subtab:        'sku',  // 'sku' | 'cliente'
     groupMode:     'sku',  // 'sku' | 'cliente' — Nivel Cliente: agrupar por SKU o por Cliente
     expanded:      new Set(), // claves de grupos expandidos
+    mesDesdeIdx:   0,      // índice del mes "Desde" dentro de FA.data.meses
+    mesHastaIdx:   0,      // índice del mes "Hasta" dentro de FA.data.meses
   };
 
   /* ── Colores semáforo → CSS ───────────────────────────────────── */
@@ -108,14 +111,217 @@
   /* ── Render principal ─────────────────────────────────────────── */
   function faRender() {
     if (!FA.data) return;
-    const d = FA.data;
-    _renderSubtitle(d);
-    _renderKpis(d.kpis || {});
-    _renderTrend(d.trend || []);
-    _renderRanking(d.ranking || {});
-    _renderHeatmap(d.heatmap || {});
-    _renderSkuTable(d.sku_table || [], d.meses || []);
+    _renderSubtitle(FA.data);
+    _populateMonthFilter();
+    faRefreshView();
+  }
+
+  /* ── Recalcula todos los indicadores según el rango de meses elegido ── */
+  function faRefreshView() {
+    const allMeses = FA.data.meses || [];
+    const meses = allMeses.slice(FA.mesDesdeIdx, FA.mesHastaIdx + 1);
+    const selectedKeys = new Set(meses.map(m => m.key));
+    const raw = (FA.data.raw || []).filter(r => selectedKeys.has(r.mes_key));
+
+    const view = {
+      meses,
+      kpis:               _buildKpisView(raw, meses),
+      trend:               _buildTrendView(raw, meses),
+      sku_table:           _buildSkuTableView(raw, meses),
+      cliente_table:       _buildClienteTableView(raw),
+      cliente_sku_detail:  _buildClienteSkuDetailView(raw),
+      ranking:             _buildRankingView(raw, meses),
+      heatmap:             _buildHeatmapView(raw, meses, FA.data.clientes || []),
+    };
+    FA.view = view;
+
+    _renderKpis(view.kpis, meses);
+    _renderTrend(view.trend);
+    _renderRanking(view.ranking);
+    _renderHeatmap(view.heatmap);
+    _renderSkuTable(view.sku_table);
     faRenderGroupTable();
+  }
+
+  /* ── Filtro de periodo: Desde / Hasta (siempre consecutivos) ────── */
+  function _populateMonthFilter() {
+    const meses = FA.data.meses || [];
+    const selDesde = document.getElementById('faMesDesde');
+    const selHasta = document.getElementById('faMesHasta');
+    if (!selDesde || !selHasta || !meses.length) return;
+
+    const opts = meses.map((m, i) => `<option value="${i}">${esc(m.label)}</option>`).join('');
+    selDesde.innerHTML = opts;
+    selHasta.innerHTML = opts;
+
+    FA.mesDesdeIdx = 0;
+    FA.mesHastaIdx = meses.length - 1;
+    selDesde.value = FA.mesDesdeIdx;
+    selHasta.value = FA.mesHastaIdx;
+    _updateMesRangeCount();
+  }
+
+  function _updateMesRangeCount() {
+    const countEl = document.getElementById('faMesRangeCount');
+    if (countEl) countEl.textContent = (FA.mesHastaIdx - FA.mesDesdeIdx + 1) + ' mes(es)';
+  }
+
+  function faOnMesRangeChange(which) {
+    const selDesde = document.getElementById('faMesDesde');
+    const selHasta = document.getElementById('faMesHasta');
+    if (!selDesde || !selHasta) return;
+
+    let d = parseInt(selDesde.value, 10);
+    let h = parseInt(selHasta.value, 10);
+
+    // Forzar que el rango se mantenga consecutivo (Desde <= Hasta)
+    if (which === 'desde' && d > h) { h = d; selHasta.value = h; }
+    if (which === 'hasta' && h < d) { d = h; selDesde.value = d; }
+
+    FA.mesDesdeIdx = d;
+    FA.mesHastaIdx = h;
+    _updateMesRangeCount();
+    faRefreshView();
+  }
+
+  /* ── Agregación FA (misma fórmula que fa_calculator.py) ─────────── */
+  function _faWeighted(totalForecast, totalError) {
+    if (totalForecast <= 0) return totalError === 0 ? 100 : 0;
+    return Math.round(Math.max(0, (1 - totalError / totalForecast) * 100) * 10) / 10;
+  }
+
+  function _faAgg(rows) {
+    let tf = 0, tv = 0, te = 0;
+    for (const r of rows) {
+      tf += r.forecast;
+      tv += r.venta;
+      te += Math.abs(r.venta - r.forecast);
+    }
+    return { forecast: tf, venta: tv, fa: rows.length ? _faWeighted(tf, te) : null };
+  }
+
+  function _groupBy(rows, keyFn) {
+    const m = new Map();
+    for (const r of rows) {
+      const k = keyFn(r);
+      if (!m.has(k)) m.set(k, []);
+      m.get(k).push(r);
+    }
+    return m;
+  }
+
+  /* ── Builders (equivalentes JS de fa_loader.py, para el rango elegido) ── */
+  function _buildKpisView(raw, meses) {
+    if (!meses.length) return {};
+    const ultimo    = meses[meses.length - 1];
+    const anterior  = meses.length >= 2 ? meses[meses.length - 2] : null;
+
+    const rowsUlt = raw.filter(r => r.mes_key === ultimo.key);
+    const faUlt   = rowsUlt.length ? _faAgg(rowsUlt).fa : null;
+
+    let faAnt = null;
+    if (anterior) {
+      const rowsAnt = raw.filter(r => r.mes_key === anterior.key);
+      faAnt = rowsAnt.length ? _faAgg(rowsAnt).fa : null;
+    }
+
+    const variacion = (faUlt !== null && faAnt !== null) ? Math.round((faUlt - faAnt) * 10) / 10 : null;
+    const tendencia = variacion > 0 ? 'up' : variacion < 0 ? 'down' : 'flat';
+    const faTotal   = raw.length ? _faAgg(raw).fa : null;
+
+    return {
+      fa_ultimo_mes: faUlt, mes_label: ultimo.label,
+      fa_mes_ant:    faAnt, mes_ant_label: anterior ? anterior.label : null,
+      variacion, tendencia, fa_total: faTotal, n_meses: meses.length,
+    };
+  }
+
+  function _buildTrendView(raw, meses) {
+    return meses.map(m => {
+      const rows = raw.filter(r => r.mes_key === m.key);
+      if (!rows.length) return null;
+      const agg = _faAgg(rows);
+      return { mes: m.key, label: m.label, fa: agg.fa, forecast: agg.forecast, venta: agg.venta };
+    }).filter(Boolean);
+  }
+
+  function _buildSkuTableView(raw, meses) {
+    const bySku = _groupBy(raw, r => r.sku);
+    const ultimos = meses.slice(-6);
+    const rows = [];
+    bySku.forEach((grp, sku) => {
+      const agg = _faAgg(grp);
+      const trend = ultimos.map(m => {
+        const dg = grp.filter(r => r.mes_key === m.key);
+        return dg.length ? _faAgg(dg).fa : null;
+      });
+      rows.push({
+        sku, descripcion: grp[0].descripcion,
+        n_clientes: new Set(grp.map(r => r.cliente)).size,
+        forecast: Math.round(agg.forecast), venta: Math.round(agg.venta),
+        fa: agg.fa, trend,
+      });
+    });
+    rows.sort((a, b) => (a.fa ?? 0) - (b.fa ?? 0));
+    return rows;
+  }
+
+  function _buildClienteTableView(raw) {
+    const byCli = _groupBy(raw, r => r.cliente);
+    const rows = [];
+    byCli.forEach((grp, cliente) => {
+      const agg = _faAgg(grp);
+      rows.push({
+        cliente, n_skus: new Set(grp.map(r => r.sku)).size,
+        forecast: Math.round(agg.forecast), venta: Math.round(agg.venta), fa: agg.fa,
+      });
+    });
+    rows.sort((a, b) => (a.fa ?? 0) - (b.fa ?? 0));
+    return rows;
+  }
+
+  function _buildClienteSkuDetailView(raw) {
+    const byPair = _groupBy(raw, r => r.cliente + '|||' + r.sku);
+    const rows = [];
+    byPair.forEach(grp => {
+      const agg = _faAgg(grp);
+      rows.push({
+        cliente: grp[0].cliente, sku: grp[0].sku, descripcion: grp[0].descripcion,
+        n_meses: new Set(grp.map(r => r.mes_key)).size,
+        forecast: Math.round(agg.forecast), venta: Math.round(agg.venta), fa: agg.fa,
+      });
+    });
+    rows.sort((a, b) => a.cliente === b.cliente ? a.sku.localeCompare(b.sku) : a.cliente.localeCompare(b.cliente));
+    return rows;
+  }
+
+  function _buildRankingView(raw, meses) {
+    if (!raw.length || !meses.length) return { mejores: [], peores: [] };
+    const ultimo = meses[meses.length - 1].key;
+    let rowsUlt = raw.filter(r => r.mes_key === ultimo);
+    if (!rowsUlt.length) rowsUlt = raw;
+
+    const bySku = _groupBy(rowsUlt, r => r.sku);
+    const list = [];
+    bySku.forEach((grp, sku) => {
+      const agg = _faAgg(grp);
+      const clientes = [...new Set(grp.map(r => r.cliente))].sort().slice(0, 3).join(', ');
+      list.push({ sku, descripcion: grp[0].descripcion, clientes, fa: agg.fa });
+    });
+    list.sort((a, b) => (a.fa ?? 0) - (b.fa ?? 0));
+    return { peores: list.slice(0, 10), mejores: list.slice(-10).reverse() };
+  }
+
+  function _buildHeatmapView(raw, meses, clientes) {
+    const matrix = clientes.map(cliente => {
+      const values = meses.map(m => {
+        const rows = raw.filter(r => r.cliente === cliente && r.mes_key === m.key);
+        return rows.length ? _faAgg(rows).fa : null;
+      });
+      const colors = values.map(v => v !== null ? faColorByVal(v).bg : '#f5f5f5');
+      return { cliente, values, colors };
+    });
+    return { meses: meses.map(m => m.label), matrix };
   }
 
   /* ── Subtítulo ────────────────────────────────────────────────── */
@@ -144,7 +350,7 @@
   }
 
   /* ── KPIs ─────────────────────────────────────────────────────── */
-  function _renderKpis(kpis) {
+  function _renderKpis(kpis, meses) {
     const fa      = kpis.fa_ultimo_mes;
     const faTotal = kpis.fa_total;
     const variac  = kpis.variacion;
@@ -198,9 +404,9 @@
     const mesesEl  = document.getElementById('faKpiMeses');
     const mesesSub = document.getElementById('faKpiMesesSub');
     if (mesesEl) mesesEl.textContent = kpis.n_meses || '—';
-    if (mesesSub && FA.data && FA.data.meses && FA.data.meses.length) {
-      const first = FA.data.meses[0].label;
-      const last  = FA.data.meses[FA.data.meses.length - 1].label;
+    if (mesesSub && meses && meses.length) {
+      const first = meses[0].label;
+      const last  = meses[meses.length - 1].label;
       mesesSub.textContent = first === last ? first : `${first} – ${last}`;
     }
   }
@@ -345,7 +551,7 @@
   }
 
   /* ── Tabla FA por SKU (Nivel SKU) ─────────────────────────────── */
-  function _renderSkuTable(rows, meses) {
+  function _renderSkuTable(rows) {
     FA.skuRows = rows;
     faFilterSkuTable();
 
@@ -403,7 +609,7 @@
   }
 
   function faRenderGroupTable() {
-    if (!FA.data) return;
+    if (!FA.view) return;
     const mode = FA.groupMode;
     const q = (document.getElementById('faGroupSearch')?.value || '').toLowerCase();
 
@@ -412,7 +618,7 @@
     const countEl = document.getElementById('faGroupCount');
     if (!head || !body) return;
 
-    const detail = FA.data.cliente_sku_detail || [];
+    const detail = FA.view.cliente_sku_detail || [];
 
     if (mode === 'sku') {
       head.innerHTML = `
@@ -424,7 +630,7 @@
         <th class="text-end">Venta Total</th>
         <th class="text-center">FA</th>`;
 
-      let parents = (FA.data.sku_table || []).slice();
+      let parents = (FA.view.sku_table || []).slice();
       if (q) {
         parents = parents.filter(p =>
           p.sku.toLowerCase().includes(q) || (p.descripcion || '').toLowerCase().includes(q) ||
@@ -477,7 +683,7 @@
         <th class="text-end">Venta Total</th>
         <th class="text-center">FA</th>`;
 
-      let parents = (FA.data.cliente_table || []).slice();
+      let parents = (FA.view.cliente_table || []).slice();
       if (q) {
         parents = parents.filter(p =>
           p.cliente.toLowerCase().includes(q) ||
@@ -554,6 +760,7 @@
   window.faExportClienteSkuCsv = faExportClienteSkuCsv;
   window.faFilterSkuTable      = faFilterSkuTable;
   window.faShowSubtab          = faShowSubtab;
+  window.faOnMesRangeChange    = faOnMesRangeChange;
   window.faSetGroupMode        = faSetGroupMode;
   window.faRenderGroupTable    = faRenderGroupTable;
   window.faToggleGroup         = function (encodedKey) { faToggleGroup(decodeURIComponent(encodedKey)); };

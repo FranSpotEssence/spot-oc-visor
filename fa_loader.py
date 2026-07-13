@@ -367,6 +367,14 @@ def _build_result(df_fc: pd.DataFrame, df_vr: pd.DataFrame,
     # Normalizar cliente (usar cliente_key = uppercase)
     df['cliente'] = df['cliente_key']
 
+    # Filtro de ranking: solo códigos A y B (se excluyen Z, I&O, C, E, N, etc.)
+    df = df[df['ranking'].isin(['A', 'B'])].copy()
+    if df.empty:
+        return {
+            'error': "Sin datos con ranking A o B para calcular Forecast Accuracy.",
+            **_empty_result(fc_name, sop_name),
+        }
+
     # FA
     df['fa']        = compute_fa_series(df, 'forecast', 'venta_real')
     df['error_abs'] = (df['venta_real'] - df['forecast']).abs()
@@ -390,6 +398,7 @@ def _build_result(df_fc: pd.DataFrame, df_vr: pd.DataFrame,
         'cliente_sku_detail':_build_cliente_sku_detail(df),
         'ranking':           _build_ranking(df),
         'heatmap':           _build_heatmap(df, clientes, meses_ordered, mes_labels),
+        'raw':               _build_raw(df),
         'clientes':          clientes,
         'meses':             [{'key': k, 'label': mes_labels[k]} for k in meses_ordered],
         'skus':              skus,
@@ -560,6 +569,18 @@ def _build_ranking(df: pd.DataFrame, top_n: int = 10) -> dict:
                        'clientes': clis, 'fa': fa, 'fa_color': fa_chip_class(fa)})
     sku_fa.sort(key=lambda x: (x['fa'] or 0))
     return {'peores': sku_fa[:top_n], 'mejores': list(reversed(sku_fa[-top_n:]))}
+
+
+def _build_raw(df: pd.DataFrame) -> list:
+    """
+    Datos a nivel cliente-SKU-mes (post filtro ranking A/B) para que el frontend
+    pueda recalcular todos los indicadores según el rango de meses seleccionado.
+    """
+    out = df[['cliente', 'sku', 'descripcion', 'mes_key', 'mes_label', 'forecast', 'venta_real']].copy()
+    out = out.rename(columns={'venta_real': 'venta'})
+    out['forecast'] = out['forecast'].round(2)
+    out['venta']    = out['venta'].round(2)
+    return out.to_dict('records')
 
 
 def _build_heatmap(df: pd.DataFrame, clientes: list, meses_ordered: list, mes_labels: dict) -> dict:

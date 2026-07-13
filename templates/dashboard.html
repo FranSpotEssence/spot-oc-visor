@@ -670,6 +670,20 @@
       <!-- Error -->
       <div id="faError" class="error-banner d-none"></div>
 
+      <!-- ── Filtro de periodo (meses consecutivos) ── -->
+      <div class="panel fa-period-panel">
+        <div class="panel-head" style="border-bottom:none">
+          <span class="panel-title">Periodo a Analizar</span>
+          <div class="ms-auto d-flex align-items-center gap-2">
+            <span class="fa-group-lbl">Desde:</span>
+            <select id="faMesDesde" class="filter-select" onchange="faOnMesRangeChange('desde')"></select>
+            <span class="fa-group-lbl">Hasta:</span>
+            <select id="faMesHasta" class="filter-select" onchange="faOnMesRangeChange('hasta')"></select>
+            <span class="panel-count" id="faMesRangeCount"></span>
+          </div>
+        </div>
+      </div>
+
       <!-- ── Sub-pestañas Nivel SKU / Nivel Cliente ── -->
       <div class="fa-subtabs">
         <button class="fa-subtab-btn active" id="faSubtabBtnSku" onclick="faShowSubtab('sku')">Nivel SKU</button>
