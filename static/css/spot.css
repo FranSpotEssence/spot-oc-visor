@@ -1591,3 +1591,78 @@ body {
   border-radius: 50%;
   flex-shrink: 0;
 }
+
+/* ── Sub-pestañas Nivel SKU / Nivel Cliente ──────────────────── */
+.fa-subtabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--spot-border);
+}
+.fa-subtab-btn {
+  background: none;
+  border: none;
+  padding: 9px 4px 11px;
+  margin-right: 22px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .3px;
+  text-transform: uppercase;
+  color: #999;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color .15s, border-color .15s;
+}
+.fa-subtab-btn:hover  { color: #333; }
+.fa-subtab-btn.active { color: #000; border-bottom-color: #000; }
+
+/* ── Selector agrupar por (Nivel Cliente) ────────────────────── */
+.fa-group-lbl {
+  font-size: 10px;
+  color: #888;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  white-space: nowrap;
+}
+.fa-group-toggle {
+  display: flex;
+  border: 1px solid var(--spot-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.fa-group-btn {
+  background: #fff;
+  border: none;
+  padding: 5px 14px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .3px;
+  text-transform: uppercase;
+  color: #888;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.fa-group-btn + .fa-group-btn { border-left: 1px solid var(--spot-border); }
+.fa-group-btn:hover  { background: #f5f5f5; }
+.fa-group-btn.active { background: #000; color: #fff; }
+
+/* ── Tabla expandible (Nivel Cliente) ────────────────────────── */
+.fa-grp-parent-row { cursor: pointer; }
+.fa-grp-parent-row:hover td { background: #fafafa; }
+.fa-grp-chevron {
+  display: inline-block;
+  font-size: 10px;
+  color: #999;
+  transition: transform .15s;
+}
+.fa-grp-chevron.open { transform: rotate(90deg); color: #000; }
+.fa-grp-child-row td {
+  background: #fbfbfb;
+  border-bottom: 1px solid #f0f0f0;
+}
+.fa-grp-child-lbl {
+  color: #555;
+  font-size: 11px;
+  padding-left: 6px !important;
+}

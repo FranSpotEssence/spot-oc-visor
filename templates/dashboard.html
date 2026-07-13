@@ -670,152 +670,160 @@
       <!-- Error -->
       <div id="faError" class="error-banner d-none"></div>
 
-      <!-- ── KPI Principal ── -->
-      <div class="kpi-grid" id="faKpiRow" style="grid-template-columns:2fr 1fr 1fr 1fr">
-        <div class="kpi-fr" id="faKpiMain">
-          <div>
-            <div class="fr-main-label">FA — Último Mes</div>
-            <div class="fr-main-value" id="faKpiValue">—</div>
-            <div class="fr-main-sub" id="faKpiSub"></div>
-          </div>
-          <span class="fr-main-badge" id="faKpiMesLabel"></span>
-        </div>
-        <div class="kpi-s s-neu">
-          <div>
-            <div class="kpi-s-lbl">FA Total Histórico</div>
-            <div class="kpi-s-val" id="faKpiTotal">—</div>
-            <div class="kpi-s-sub" id="faKpiTotalSub"></div>
-          </div>
-          <div class="kpi-s-dot"></div>
-        </div>
-        <div class="kpi-s s-neu" id="faKpiVarCard">
-          <div>
-            <div class="kpi-s-lbl">Variación vs Mes Anterior</div>
-            <div class="kpi-s-val" id="faKpiVar">—</div>
-            <div class="kpi-s-sub" id="faKpiVarSub"></div>
-          </div>
-          <div class="kpi-s-dot"></div>
-        </div>
-        <div class="kpi-s s-neu">
-          <div>
-            <div class="kpi-s-lbl">Meses Analizados</div>
-            <div class="kpi-s-val" id="faKpiMeses">—</div>
-            <div class="kpi-s-sub" id="faKpiMesesSub"></div>
-          </div>
-          <div class="kpi-s-dot"></div>
-        </div>
+      <!-- ── Sub-pestañas Nivel SKU / Nivel Cliente ── -->
+      <div class="fa-subtabs">
+        <button class="fa-subtab-btn active" id="faSubtabBtnSku" onclick="faShowSubtab('sku')">Nivel SKU</button>
+        <button class="fa-subtab-btn" id="faSubtabBtnCliente" onclick="faShowSubtab('cliente')">Nivel Cliente</button>
       </div>
 
-      <!-- ── Evolución Mensual + Ranking (fila) ── -->
-      <div class="row g-3 mt-1">
-        <div class="col-lg-8">
-          <div class="panel h-100">
-            <div class="panel-head">
-              <span class="panel-title">Evolución Mensual FA (%)</span>
-            </div>
-            <div style="position:relative;height:260px;padding:12px 16px 8px">
-              <canvas id="faChartTrend"></canvas>
-            </div>
-          </div>
-        </div>
-        <div class="col-lg-4">
-          <div class="panel h-100">
-            <div class="panel-head">
-              <span class="panel-title">Ranking SKU — Último Mes</span>
-            </div>
-            <div style="padding:10px 16px" id="faRankingPanel">
-              <div class="fa-rank-section-label">Top Mejores</div>
-              <div id="faRankMejores"></div>
-              <div class="fa-rank-section-label" style="margin-top:10px">Top Peores</div>
-              <div id="faRankPeores"></div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <!-- ══════════ PANEL: NIVEL SKU ══════════ -->
+      <div id="faPanelSku">
 
-      <!-- ── Heatmap Cliente × Mes ── -->
-      <div class="panel mt-3">
-        <div class="panel-head">
-          <span class="panel-title">Heatmap FA — Cliente × Mes</span>
-          <span class="fa-legend ms-auto d-flex gap-2 align-items-center" style="font-size:10px">
-            <span class="fa-leg-chip" style="background:#dcfce7"></span>≥80%
-            <span class="fa-leg-chip" style="background:#fef9c3"></span>≥60%
-            <span class="fa-leg-chip" style="background:#ffedd5"></span>≥40%
-            <span class="fa-leg-chip" style="background:#fee2e2"></span>&lt;40%
-          </span>
-        </div>
-        <div class="table-responsive" style="max-height:320px;overflow:auto">
-          <table class="fa-heatmap-table" id="faHeatmapTable">
-            <thead id="faHeatmapHead"></thead>
-            <tbody id="faHeatmapBody"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- ── Tabla FA por SKU ── -->
-      <div class="panel mt-3">
-        <div class="panel-head">
-          <span class="panel-title">FA por SKU</span>
-          <span class="panel-count" id="faSkuCount"></span>
-          <div class="panel-filters ms-auto">
-            <input type="text" id="faSkuSearch" class="search-inp" placeholder="Buscar SKU o descripción..."
-              oninput="faFilterSkuTable()">
+        <!-- ── KPI Principal ── -->
+        <div class="kpi-grid" id="faKpiRow" style="grid-template-columns:2fr 1fr 1fr 1fr">
+          <div class="kpi-fr" id="faKpiMain">
+            <div>
+              <div class="fr-main-label">FA — Último Mes</div>
+              <div class="fr-main-value" id="faKpiValue">—</div>
+              <div class="fr-main-sub" id="faKpiSub"></div>
+            </div>
+            <span class="fr-main-badge" id="faKpiMesLabel"></span>
+          </div>
+          <div class="kpi-s s-neu">
+            <div>
+              <div class="kpi-s-lbl">FA Total Histórico</div>
+              <div class="kpi-s-val" id="faKpiTotal">—</div>
+              <div class="kpi-s-sub" id="faKpiTotalSub"></div>
+            </div>
+            <div class="kpi-s-dot"></div>
+          </div>
+          <div class="kpi-s s-neu" id="faKpiVarCard">
+            <div>
+              <div class="kpi-s-lbl">Variación vs Mes Anterior</div>
+              <div class="kpi-s-val" id="faKpiVar">—</div>
+              <div class="kpi-s-sub" id="faKpiVarSub"></div>
+            </div>
+            <div class="kpi-s-dot"></div>
+          </div>
+          <div class="kpi-s s-neu">
+            <div>
+              <div class="kpi-s-lbl">Meses Analizados</div>
+              <div class="kpi-s-val" id="faKpiMeses">—</div>
+              <div class="kpi-s-sub" id="faKpiMesesSub"></div>
+            </div>
+            <div class="kpi-s-dot"></div>
           </div>
         </div>
-        <div class="table-responsive">
-          <table class="spot-table w-100" id="faSkuTable">
-            <thead>
-              <tr>
-                <th>SKU</th>
-                <th>Descripción</th>
-                <th class="text-end">Forecast Total</th>
-                <th class="text-end">Venta Total</th>
-                <th class="text-center">FA</th>
-                <th class="text-center" style="min-width:120px">Tendencia</th>
-              </tr>
-            </thead>
-            <tbody id="faSkuBody">
-              <tr><td colspan="6" class="text-center py-4 text-muted">Cargando...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
 
-      <!-- ── Tabla FA Cliente-SKU ── -->
-      <div class="panel mt-3">
-        <div class="panel-head">
-          <span class="panel-title">FA Cliente-SKU</span>
-          <span class="panel-count" id="faCliSkuCount"></span>
-          <div class="panel-filters ms-auto">
-            <select id="faCliSkuCliente" class="filter-select" onchange="faFilterCliSkuTable()">
-              <option value="">Todos los clientes</option>
-            </select>
-            <select id="faCliSkuMes" class="filter-select" onchange="faFilterCliSkuTable()">
-              <option value="">Todos los meses</option>
-            </select>
-            <input type="text" id="faCliSkuSearch" class="search-inp" placeholder="Buscar SKU..."
-              oninput="faFilterCliSkuTable()">
+        <!-- ── Evolución Mensual + Ranking (fila) ── -->
+        <div class="row g-3 mt-1">
+          <div class="col-lg-8">
+            <div class="panel h-100">
+              <div class="panel-head">
+                <span class="panel-title">Evolución Mensual FA (%) — Total SKU</span>
+              </div>
+              <div style="position:relative;height:260px;padding:12px 16px 8px">
+                <canvas id="faChartTrend"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-4">
+            <div class="panel h-100">
+              <div class="panel-head">
+                <span class="panel-title">Ranking SKU — Último Mes</span>
+              </div>
+              <div style="padding:10px 16px" id="faRankingPanel">
+                <div class="fa-rank-section-label">Top Mejores</div>
+                <div id="faRankMejores"></div>
+                <div class="fa-rank-section-label" style="margin-top:10px">Top Peores</div>
+                <div id="faRankPeores"></div>
+              </div>
+            </div>
           </div>
         </div>
-        <div class="table-responsive">
-          <table class="spot-table w-100" id="faCliSkuTable">
-            <thead>
-              <tr>
-                <th>Cliente</th>
-                <th>SKU</th>
-                <th>Descripción</th>
-                <th>Mes</th>
-                <th class="text-end">Forecast</th>
-                <th class="text-end">Venta</th>
-                <th class="text-center">FA</th>
-              </tr>
-            </thead>
-            <tbody id="faCliSkuBody">
-              <tr><td colspan="7" class="text-center py-4 text-muted">Cargando...</td></tr>
-            </tbody>
-          </table>
+
+        <!-- ── Tabla FA por SKU (agregado: todos los clientes) ── -->
+        <div class="panel mt-3">
+          <div class="panel-head">
+            <span class="panel-title">FA por SKU — Total (todos los clientes)</span>
+            <span class="panel-count" id="faSkuCount"></span>
+            <div class="panel-filters ms-auto">
+              <input type="text" id="faSkuSearch" class="search-inp" placeholder="Buscar SKU o descripción..."
+                oninput="faFilterSkuTable()">
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="spot-table w-100" id="faSkuTable">
+              <thead>
+                <tr>
+                  <th>SKU</th>
+                  <th>Descripción</th>
+                  <th class="text-center">N° Clientes</th>
+                  <th class="text-end">Forecast Total</th>
+                  <th class="text-end">Venta Total</th>
+                  <th class="text-center">FA</th>
+                  <th class="text-center" style="min-width:120px">Tendencia</th>
+                </tr>
+              </thead>
+              <tbody id="faSkuBody">
+                <tr><td colspan="7" class="text-center py-4 text-muted">Cargando...</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+
+      </div><!-- /faPanelSku -->
+
+      <!-- ══════════ PANEL: NIVEL CLIENTE ══════════ -->
+      <div id="faPanelCliente" class="d-none">
+
+        <!-- ── Heatmap Cliente × Mes ── -->
+        <div class="panel mt-1">
+          <div class="panel-head">
+            <span class="panel-title">Heatmap FA — Cliente × Mes</span>
+            <span class="fa-legend ms-auto d-flex gap-2 align-items-center" style="font-size:10px">
+              <span class="fa-leg-chip" style="background:#dcfce7"></span>≥80%
+              <span class="fa-leg-chip" style="background:#fef9c3"></span>≥60%
+              <span class="fa-leg-chip" style="background:#ffedd5"></span>≥40%
+              <span class="fa-leg-chip" style="background:#fee2e2"></span>&lt;40%
+            </span>
+          </div>
+          <div class="table-responsive" style="max-height:320px;overflow:auto">
+            <table class="fa-heatmap-table" id="faHeatmapTable">
+              <thead id="faHeatmapHead"></thead>
+              <tbody id="faHeatmapBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ── Detalle SKU-Cliente (agrupable y expandible) ── -->
+        <div class="panel mt-3">
+          <div class="panel-head">
+            <span class="panel-title">Detalle SKU-Cliente</span>
+            <span class="panel-count" id="faGroupCount"></span>
+            <div class="panel-filters ms-auto d-flex align-items-center gap-2">
+              <span class="fa-group-lbl">Agrupar por:</span>
+              <div class="fa-group-toggle">
+                <button class="fa-group-btn active" id="faGroupBtnSku" onclick="faSetGroupMode('sku')">SKU</button>
+                <button class="fa-group-btn" id="faGroupBtnCliente" onclick="faSetGroupMode('cliente')">Cliente</button>
+              </div>
+              <input type="text" id="faGroupSearch" class="search-inp" placeholder="Buscar..."
+                oninput="faRenderGroupTable()">
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="spot-table w-100" id="faGroupTable">
+              <thead>
+                <tr id="faGroupHead"></tr>
+              </thead>
+              <tbody id="faGroupBody">
+                <tr><td colspan="6" class="text-center py-4 text-muted">Cargando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /faPanelCliente -->
 
     </section>
 

@@ -386,6 +386,8 @@ def _build_result(df_fc: pd.DataFrame, df_vr: pd.DataFrame,
         'trend':             _build_trend(df, meses_ordered, mes_labels),
         'sku_table':         _build_sku_table(df, meses_ordered),
         'cliente_sku_table': _build_cliente_sku_table(df),
+        'cliente_table':     _build_cliente_table(df),
+        'cliente_sku_detail':_build_cliente_sku_detail(df),
         'ranking':           _build_ranking(df),
         'heatmap':           _build_heatmap(df, clientes, meses_ordered, mes_labels),
         'clientes':          clientes,
@@ -477,6 +479,7 @@ def _build_sku_table(df: pd.DataFrame, meses_ordered: list) -> list:
             trend.append(fa_from_df(dg, 'forecast', 'venta_real') if not dg.empty else None)
         rows.append({
             'sku': str(sku), 'descripcion': str(desc), 'ranking': str(rank), 'categoria': str(cat),
+            'n_clientes': int(grp['cliente'].nunique()),
             'forecast': round(float(grp['forecast'].sum()), 0),
             'venta':    round(float(grp['venta_real'].sum()), 0),
             'fa':       fa_total,
@@ -484,6 +487,43 @@ def _build_sku_table(df: pd.DataFrame, meses_ordered: list) -> list:
             'trend':    trend,
         })
     rows.sort(key=lambda r: (r['fa'] or 0))
+    return rows
+
+
+def _build_cliente_table(df: pd.DataFrame) -> list:
+    """Resumen agregado por cliente (suma todos los SKU y meses)."""
+    rows = []
+    for cliente, grp in df.groupby('cliente', sort=True):
+        fa = fa_from_df(grp, 'forecast', 'venta_real')
+        rows.append({
+            'cliente':   str(cliente),
+            'n_skus':    int(grp['sku'].nunique()),
+            'forecast':  round(float(grp['forecast'].sum()), 0),
+            'venta':     round(float(grp['venta_real'].sum()), 0),
+            'fa':        fa,
+            'fa_color':  fa_chip_class(fa),
+        })
+    rows.sort(key=lambda r: (r['fa'] or 0))
+    return rows
+
+
+def _build_cliente_sku_detail(df: pd.DataFrame) -> list:
+    """Detalle agregado por par Cliente-SKU (suma todos los meses) — usado para las tablas expandibles."""
+    rows = []
+    for (cliente, sku), grp in df.groupby(['cliente', 'sku'], sort=False):
+        fa   = fa_from_df(grp, 'forecast', 'venta_real')
+        desc = grp['descripcion'].mode()[0] if not grp['descripcion'].empty else ''
+        rows.append({
+            'cliente':     str(cliente),
+            'sku':         str(sku),
+            'descripcion': str(desc),
+            'n_meses':     int(grp['mes_key'].nunique()),
+            'forecast':    round(float(grp['forecast'].sum()), 0),
+            'venta':       round(float(grp['venta_real'].sum()), 0),
+            'fa':          fa,
+            'fa_color':    fa_chip_class(fa),
+        })
+    rows.sort(key=lambda r: (r['cliente'], r['sku']))
     return rows
 
 

@@ -11,7 +11,9 @@
     data:          null,   // payload completo del API
     chartInstance: null,   // Chart.js instance
     skuRows:       [],     // filas para la tabla SKU (cacheadas)
-    cliSkuRows:    [],     // filas para tabla Cliente-SKU
+    subtab:        'sku',  // 'sku' | 'cliente'
+    groupMode:     'sku',  // 'sku' | 'cliente' — Nivel Cliente: agrupar por SKU o por Cliente
+    expanded:      new Set(), // claves de grupos expandidos
   };
 
   /* ── Colores semáforo → CSS ───────────────────────────────────── */
@@ -49,9 +51,12 @@
     return Number(n).toLocaleString('es-CL', { maximumFractionDigits: 0 });
   }
 
+  function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  }
+
   /* ── Carga de datos ───────────────────────────────────────────── */
   async function faLoad(force) {
-    const url = force ? null : '/api/fa/data';
     try {
       _faSetLoading(true);
       let resp;
@@ -63,7 +68,6 @@
           _faShowError(refreshResult.error || 'Error al actualizar');
           return;
         }
-        // after refresh, load full data
         resp = await fetch('/api/fa/data');
       } else {
         resp = await fetch('/api/fa/data');
@@ -111,7 +115,7 @@
     _renderRanking(d.ranking || {});
     _renderHeatmap(d.heatmap || {});
     _renderSkuTable(d.sku_table || [], d.meses || []);
-    _renderCliSkuTable(d.cliente_sku_table || [], d.clientes || [], d.meses || []);
+    faRenderGroupTable();
   }
 
   /* ── Subtítulo ────────────────────────────────────────────────── */
@@ -122,6 +126,21 @@
     el.textContent = archivos ? `Archivos: ${archivos}` : 'Datos cargados';
     const upEl = document.getElementById('faUpdatedAt');
     if (upEl) upEl.textContent = d.updated_at ? `Actualizado: ${d.updated_at}` : '';
+  }
+
+  /* ── Sub-pestañas Nivel SKU / Nivel Cliente ─────────────────────── */
+  function faShowSubtab(tab) {
+    FA.subtab = tab;
+    const panelSku = document.getElementById('faPanelSku');
+    const panelCli = document.getElementById('faPanelCliente');
+    if (panelSku) panelSku.classList.toggle('d-none', tab !== 'sku');
+    if (panelCli) panelCli.classList.toggle('d-none', tab !== 'cliente');
+
+    document.getElementById('faSubtabBtnSku')?.classList.toggle('active', tab === 'sku');
+    document.getElementById('faSubtabBtnCliente')?.classList.toggle('active', tab === 'cliente');
+
+    // Chart.js necesita recalcular tamaño si estaba oculto al renderizar
+    if (tab === 'sku' && FA.chartInstance) FA.chartInstance.resize();
   }
 
   /* ── KPIs ─────────────────────────────────────────────────────── */
@@ -283,8 +302,8 @@
         <div class="fa-rank-item">
           <span class="fa-rank-pos">${i + 1}</span>
           <div class="fa-rank-info">
-            <div class="fa-rank-sku">${r.sku}</div>
-            <div class="fa-rank-desc">${r.descripcion || r.clientes || ''}</div>
+            <div class="fa-rank-sku">${esc(r.sku)}</div>
+            <div class="fa-rank-desc">${esc(r.descripcion || r.clientes || '')}</div>
             <div class="fa-rank-bar-wrap">
               <div class="fa-rank-bar" style="width:${pct}%;background:${col.border}"></div>
             </div>
@@ -311,7 +330,7 @@
 
     thead.innerHTML = '<tr>' +
       '<th class="fa-hm-cliente-col">Cliente</th>' +
-      meses.map(m => `<th class="fa-hm-mes-col">${m}</th>`).join('') +
+      meses.map(m => `<th class="fa-hm-mes-col">${esc(m)}</th>`).join('') +
       '</tr>';
 
     tbody.innerHTML = matrix.map(row => {
@@ -321,11 +340,11 @@
         const txtColor = v !== null ? faColorByVal(v).text : '#aaa';
         return `<td class="fa-hm-cell" style="background:${bg};color:${txtColor}">${text}</td>`;
       }).join('');
-      return `<tr><td class="fa-hm-cliente">${row.cliente}</td>${cells}</tr>`;
+      return `<tr><td class="fa-hm-cliente">${esc(row.cliente)}</td>${cells}</tr>`;
     }).join('');
   }
 
-  /* ── Tabla FA por SKU ─────────────────────────────────────────── */
+  /* ── Tabla FA por SKU (Nivel SKU) ─────────────────────────────── */
   function _renderSkuTable(rows, meses) {
     FA.skuRows = rows;
     faFilterSkuTable();
@@ -344,7 +363,7 @@
     if (!tbody) return;
 
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="text-center py-3 text-muted">Sin resultados</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center py-3 text-muted">Sin resultados</td></tr>';
       return;
     }
 
@@ -357,8 +376,9 @@
       }).join('');
 
       return `<tr>
-        <td><code style="font-size:11px">${r.sku}</code></td>
-        <td>${r.descripcion || ''}</td>
+        <td><code style="font-size:11px">${esc(r.sku)}</code></td>
+        <td>${esc(r.descripcion || '')}</td>
+        <td class="text-center">${r.n_clientes ?? '—'}</td>
         <td class="text-end">${fmtNum(r.forecast)}</td>
         <td class="text-end">${fmtNum(r.venta)}</td>
         <td class="text-center">${faChipHtml(r.fa, r.fa_color ? r.fa_color.replace('c-', 'pct-') : null)}</td>
@@ -367,56 +387,144 @@
     }).join('');
   }
 
-  /* ── Tabla FA Cliente-SKU ─────────────────────────────────────── */
-  function _renderCliSkuTable(rows, clientes, meses) {
-    FA.cliSkuRows = rows;
-
-    // Poblar filtros
-    const selCli = document.getElementById('faCliSkuCliente');
-    if (selCli) {
-      selCli.innerHTML = '<option value="">Todos los clientes</option>' +
-        clientes.map(c => `<option value="${c}">${c}</option>`).join('');
-    }
-    const selMes = document.getElementById('faCliSkuMes');
-    if (selMes) {
-      selMes.innerHTML = '<option value="">Todos los meses</option>' +
-        meses.map(m => `<option value="${m.key}">${m.label}</option>`).join('');
-    }
-
-    faFilterCliSkuTable();
+  /* ── Nivel Cliente: tabla agrupable y expandible ────────────────── */
+  function faSetGroupMode(mode) {
+    FA.groupMode = mode;
+    FA.expanded.clear();
+    document.getElementById('faGroupBtnSku')?.classList.toggle('active', mode === 'sku');
+    document.getElementById('faGroupBtnCliente')?.classList.toggle('active', mode === 'cliente');
+    faRenderGroupTable();
   }
 
-  function faFilterCliSkuTable() {
-    const cli = document.getElementById('faCliSkuCliente')?.value || '';
-    const mes = document.getElementById('faCliSkuMes')?.value || '';
-    const q   = (document.getElementById('faCliSkuSearch')?.value || '').toLowerCase();
+  function faToggleGroup(key) {
+    if (FA.expanded.has(key)) FA.expanded.delete(key);
+    else FA.expanded.add(key);
+    faRenderGroupTable();
+  }
 
-    const rows = FA.cliSkuRows.filter(r =>
-      (!cli || r.cliente === cli) &&
-      (!mes || r.mes === mes) &&
-      (!q   || r.sku.toLowerCase().includes(q) || (r.descripcion || '').toLowerCase().includes(q))
-    );
+  function faRenderGroupTable() {
+    if (!FA.data) return;
+    const mode = FA.groupMode;
+    const q = (document.getElementById('faGroupSearch')?.value || '').toLowerCase();
 
-    const countEl = document.getElementById('faCliSkuCount');
-    if (countEl) countEl.textContent = rows.length + ' filas';
+    const head = document.getElementById('faGroupHead');
+    const body = document.getElementById('faGroupBody');
+    const countEl = document.getElementById('faGroupCount');
+    if (!head || !body) return;
 
-    const tbody = document.getElementById('faCliSkuBody');
-    if (!tbody) return;
+    const detail = FA.data.cliente_sku_detail || [];
 
-    if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="7" class="text-center py-3 text-muted">Sin resultados</td></tr>';
-      return;
+    if (mode === 'sku') {
+      head.innerHTML = `
+        <th style="width:24px"></th>
+        <th>SKU</th>
+        <th>Descripción</th>
+        <th class="text-center">N° Clientes</th>
+        <th class="text-end">Forecast Total</th>
+        <th class="text-end">Venta Total</th>
+        <th class="text-center">FA</th>`;
+
+      let parents = (FA.data.sku_table || []).slice();
+      if (q) {
+        parents = parents.filter(p =>
+          p.sku.toLowerCase().includes(q) || (p.descripcion || '').toLowerCase().includes(q) ||
+          detail.some(d => d.sku === p.sku && d.cliente.toLowerCase().includes(q))
+        );
+      }
+      if (countEl) countEl.textContent = parents.length + ' SKUs';
+
+      if (!parents.length) {
+        body.innerHTML = '<tr><td colspan="7" class="text-center py-3 text-muted">Sin resultados</td></tr>';
+        return;
+      }
+
+      body.innerHTML = parents.map(p => {
+        const key = 'sku:' + p.sku;
+        const open = FA.expanded.has(key);
+        const children = detail.filter(d => d.sku === p.sku)
+          .sort((a, b) => (a.fa ?? 0) - (b.fa ?? 0));
+
+        const parentRow = `
+          <tr class="fa-grp-parent-row" onclick="faToggleGroup('${_jsKey(key)}')">
+            <td><span class="fa-grp-chevron ${open ? 'open' : ''}">▸</span></td>
+            <td><code style="font-size:11px">${esc(p.sku)}</code></td>
+            <td>${esc(p.descripcion || '')}</td>
+            <td class="text-center">${p.n_clientes ?? children.length}</td>
+            <td class="text-end">${fmtNum(p.forecast)}</td>
+            <td class="text-end">${fmtNum(p.venta)}</td>
+            <td class="text-center">${faChipHtml(p.fa, p.fa_color ? p.fa_color.replace('c-', 'pct-') : null)}</td>
+          </tr>`;
+
+        const childRows = open ? children.map(c => `
+          <tr class="fa-grp-child-row">
+            <td></td>
+            <td colspan="2" class="fa-grp-child-lbl">↳ ${esc(c.cliente)}</td>
+            <td class="text-center" style="color:#aaa;font-size:10px">${c.n_meses} mes(es)</td>
+            <td class="text-end">${fmtNum(c.forecast)}</td>
+            <td class="text-end">${fmtNum(c.venta)}</td>
+            <td class="text-center">${faChipHtml(c.fa, c.fa_color ? c.fa_color.replace('c-', 'pct-') : null)}</td>
+          </tr>`).join('') : '';
+
+        return parentRow + childRows;
+      }).join('');
+
+    } else {
+      head.innerHTML = `
+        <th style="width:24px"></th>
+        <th>Cliente</th>
+        <th class="text-center">N° SKUs</th>
+        <th class="text-end">Forecast Total</th>
+        <th class="text-end">Venta Total</th>
+        <th class="text-center">FA</th>`;
+
+      let parents = (FA.data.cliente_table || []).slice();
+      if (q) {
+        parents = parents.filter(p =>
+          p.cliente.toLowerCase().includes(q) ||
+          detail.some(d => d.cliente === p.cliente && (d.sku.toLowerCase().includes(q) || (d.descripcion || '').toLowerCase().includes(q)))
+        );
+      }
+      if (countEl) countEl.textContent = parents.length + ' clientes';
+
+      if (!parents.length) {
+        body.innerHTML = '<tr><td colspan="6" class="text-center py-3 text-muted">Sin resultados</td></tr>';
+        return;
+      }
+
+      body.innerHTML = parents.map(p => {
+        const key = 'cli:' + p.cliente;
+        const open = FA.expanded.has(key);
+        const children = detail.filter(d => d.cliente === p.cliente)
+          .sort((a, b) => (a.fa ?? 0) - (b.fa ?? 0));
+
+        const parentRow = `
+          <tr class="fa-grp-parent-row" onclick="faToggleGroup('${_jsKey(key)}')">
+            <td><span class="fa-grp-chevron ${open ? 'open' : ''}">▸</span></td>
+            <td>${esc(p.cliente)}</td>
+            <td class="text-center">${p.n_skus ?? children.length}</td>
+            <td class="text-end">${fmtNum(p.forecast)}</td>
+            <td class="text-end">${fmtNum(p.venta)}</td>
+            <td class="text-center">${faChipHtml(p.fa, p.fa_color ? p.fa_color.replace('c-', 'pct-') : null)}</td>
+          </tr>`;
+
+        const childRows = open ? children.map(c => `
+          <tr class="fa-grp-child-row">
+            <td></td>
+            <td class="fa-grp-child-lbl">↳ <code style="font-size:11px">${esc(c.sku)}</code> ${esc(c.descripcion || '')}</td>
+            <td class="text-center" style="color:#aaa;font-size:10px">${c.n_meses} mes(es)</td>
+            <td class="text-end">${fmtNum(c.forecast)}</td>
+            <td class="text-end">${fmtNum(c.venta)}</td>
+            <td class="text-center">${faChipHtml(c.fa, c.fa_color ? c.fa_color.replace('c-', 'pct-') : null)}</td>
+          </tr>`).join('') : '';
+
+        return parentRow + childRows;
+      }).join('');
     }
+  }
 
-    tbody.innerHTML = rows.map(r => `<tr>
-      <td>${r.cliente}</td>
-      <td><code style="font-size:11px">${r.sku}</code></td>
-      <td>${r.descripcion || ''}</td>
-      <td style="color:#888;font-size:11px">${r.mes_label || r.mes}</td>
-      <td class="text-end">${fmtNum(r.forecast)}</td>
-      <td class="text-end">${fmtNum(r.venta)}</td>
-      <td class="text-center">${faChipHtml(r.fa, r.fa_color ? r.fa_color.replace('c-', 'pct-') : null)}</td>
-    </tr>`).join('');
+  // Las keys pueden contener caracteres especiales (comillas, etc.) — codificar para usar en atributo onclick
+  function _jsKey(key) {
+    return encodeURIComponent(key).replace(/'/g, '%27');
   }
 
   /* ── Exportar CSV ─────────────────────────────────────────────── */
@@ -441,12 +549,15 @@
   }
 
   /* ── Exponer al scope global (necesario para onclick en HTML) ──── */
-  window.faRefresh          = faRefresh;
-  window.faExportSkuCsv    = faExportSkuCsv;
+  window.faRefresh             = faRefresh;
+  window.faExportSkuCsv        = faExportSkuCsv;
   window.faExportClienteSkuCsv = faExportClienteSkuCsv;
-  window.faFilterSkuTable  = faFilterSkuTable;
-  window.faFilterCliSkuTable = faFilterCliSkuTable;
-  window.faInit             = faInit;
+  window.faFilterSkuTable      = faFilterSkuTable;
+  window.faShowSubtab          = faShowSubtab;
+  window.faSetGroupMode        = faSetGroupMode;
+  window.faRenderGroupTable    = faRenderGroupTable;
+  window.faToggleGroup         = function (encodedKey) { faToggleGroup(decodeURIComponent(encodedKey)); };
+  window.faInit                = faInit;
 
   /* ── Hook en showSection de dashboard.js ─────────────────────── */
   const _origShowSection = window.showSection;
