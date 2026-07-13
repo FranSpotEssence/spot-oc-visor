@@ -1442,61 +1442,6 @@ body {
    FORECAST ACCURACY MODULE
 ════════════════════════════════════════════════════════════════ */
 
-/* ── Heatmap ─────────────────────────────────────────────────── */
-.fa-heatmap-table {
-  border-collapse: collapse;
-  font-size: 11px;
-  min-width: 100%;
-}
-.fa-heatmap-table th,
-.fa-heatmap-table td {
-  border: 1px solid #e8e8e8;
-  padding: 0;
-  white-space: nowrap;
-}
-.fa-hm-cliente-col {
-  background: #fafafa;
-  font-weight: 700;
-  font-size: 10px;
-  color: #555;
-  padding: 6px 12px;
-  min-width: 140px;
-  position: sticky;
-  left: 0;
-  z-index: 2;
-  border-right: 2px solid #e0e0e0;
-}
-.fa-hm-mes-col {
-  background: #f5f5f5;
-  font-weight: 700;
-  font-size: 10px;
-  color: #555;
-  padding: 5px 10px;
-  text-align: center;
-  min-width: 70px;
-}
-.fa-hm-cliente {
-  background: #fff;
-  font-weight: 600;
-  font-size: 11px;
-  padding: 5px 12px;
-  position: sticky;
-  left: 0;
-  z-index: 1;
-  border-right: 2px solid #e0e0e0;
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.fa-hm-cell {
-  text-align: center;
-  font-weight: 700;
-  font-size: 11px;
-  padding: 5px 8px;
-  min-width: 70px;
-  transition: opacity .15s;
-}
-.fa-hm-cell:hover { opacity: .8; }
 
 /* ── Leyenda heatmap ─────────────────────────────────────────── */
 .fa-leg-chip {

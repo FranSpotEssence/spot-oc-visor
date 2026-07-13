@@ -154,7 +154,8 @@
     selDesde.innerHTML = opts;
     selHasta.innerHTML = opts;
 
-    FA.mesDesdeIdx = 0;
+    // Por defecto: solo el último mes cerrado (se actualiza solo al cargar nuevos archivos)
+    FA.mesDesdeIdx = meses.length - 1;
     FA.mesHastaIdx = meses.length - 1;
     selDesde.value = FA.mesDesdeIdx;
     selHasta.value = FA.mesHastaIdx;
@@ -535,18 +536,13 @@
     }
 
     thead.innerHTML = '<tr>' +
-      '<th class="fa-hm-cliente-col">Cliente</th>' +
-      meses.map(m => `<th class="fa-hm-mes-col">${esc(m)}</th>`).join('') +
+      '<th>Cliente</th>' +
+      meses.map(m => `<th class="text-center">${esc(m)}</th>`).join('') +
       '</tr>';
 
     tbody.innerHTML = matrix.map(row => {
-      const cells = row.values.map((v, i) => {
-        const bg   = row.colors[i];
-        const text = v !== null ? v.toFixed(1) + '%' : '—';
-        const txtColor = v !== null ? faColorByVal(v).text : '#aaa';
-        return `<td class="fa-hm-cell" style="background:${bg};color:${txtColor}">${text}</td>`;
-      }).join('');
-      return `<tr><td class="fa-hm-cliente">${esc(row.cliente)}</td>${cells}</tr>`;
+      const cells = row.values.map(v => `<td class="text-center">${faChipHtml(v)}</td>`).join('');
+      return `<tr><td style="font-weight:700">${esc(row.cliente)}</td>${cells}</tr>`;
     }).join('');
   }
 
