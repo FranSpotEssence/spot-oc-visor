@@ -78,6 +78,17 @@ def _norm_sku(v) -> str:
 _KW_FORECAST = {'forecast', 'base forecast'}
 _KW_SOP      = {'s&op', 'sop', 'cierre'}
 
+# ── Clientes habilitados en el visor de Forecast Accuracy ──────────
+CLIENTES_VISIBLES = {
+    'CENCOSUD RETAIL S.A.',
+    'ENEX',
+    'KEYLOGISTICS CHILE S A',
+    'EASY RETAIL S.A. .-',
+    'SODIMAC S.A.',
+    'WALMART CHILE S.A.',
+    'HIPERMERCADOS TOTTUS SA',
+}
+
 
 def _extract_ultimo_mes(filename: str) -> Optional[pd.Timestamp]:
     """
@@ -372,6 +383,14 @@ def _build_result(df_fc: pd.DataFrame, df_vr: pd.DataFrame,
     if df.empty:
         return {
             'error': "Sin datos con ranking A o B para calcular Forecast Accuracy.",
+            **_empty_result(fc_name, sop_name),
+        }
+
+    # Filtro de clientes visibles en el visor
+    df = df[df['cliente'].isin(CLIENTES_VISIBLES)].copy()
+    if df.empty:
+        return {
+            'error': "Sin datos para los clientes habilitados en el visor de Forecast Accuracy.",
             **_empty_result(fc_name, sop_name),
         }
 
