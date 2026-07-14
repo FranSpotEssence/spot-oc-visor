@@ -616,9 +616,10 @@
             <select id="tptAroma" class="filter-select" onchange="filterTrackingPT()">
               <option value="">Todos los aromas</option>
             </select>
-            <select id="tptAbc" class="filter-select" onchange="filterTrackingPT()">
-              <option value="">Ranking ABC</option>
-            </select>
+            <div class="tpt-abc-filter">
+              <span class="fa-group-lbl">ABC:</span>
+              <div class="fa-group-toggle" id="tptAbcToggle"></div>
+            </div>
             <button class="clear-btn" id="tptBtnClear" onclick="resetTrackingPT()" style="display:none">Limpiar filtros</button>
           </div>
         </div>

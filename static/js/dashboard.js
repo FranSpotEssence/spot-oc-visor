@@ -2737,7 +2737,7 @@ function _frLabel(fr) {
 // ═══════════════════════════════════════════════════════════════
 // TRACKING PT
 // ═══════════════════════════════════════════════════════════════
-const TPT = { data: null, filtered: [], sortCol: "abc", sortAsc: true };
+const TPT = { data: null, filtered: [], sortCol: "abc", sortAsc: true, abcSelected: new Set() };
 
 async function loadTrackingPT() {
   if (TPT.data) { filterTrackingPT(); return; }
@@ -2751,10 +2751,15 @@ async function loadTrackingPT() {
 
     const catSel   = document.getElementById("tptCategoria");
     const aromaSel = document.getElementById("tptAroma");
-    const abcSel   = document.getElementById("tptAbc");
     (json.categorias || []).forEach(c => catSel.insertAdjacentHTML("beforeend",  `<option value="${esc(c)}">${esc(c)}</option>`));
     (json.aromas     || []).forEach(a => aromaSel.insertAdjacentHTML("beforeend",`<option value="${esc(a)}">${esc(a)}</option>`));
-    (json.abcs       || []).forEach(b => abcSel.insertAdjacentHTML("beforeend",  `<option value="${esc(b)}">${esc(b)}</option>`));
+
+    const abcToggle = document.getElementById("tptAbcToggle");
+    if (abcToggle) {
+      abcToggle.innerHTML = (json.abcs || []).map(b =>
+        `<button type="button" class="fa-group-btn" onclick="toggleTptAbc('${esc(b)}')">${esc(b)}</button>`
+      ).join("");
+    }
 
     // Headers dinámicos de los 3 meses cerrados
     const labels = json.last3_labels || [];
@@ -2770,22 +2775,33 @@ async function loadTrackingPT() {
   }
 }
 
+function toggleTptAbc(value) {
+  if (TPT.abcSelected.has(value)) TPT.abcSelected.delete(value);
+  else TPT.abcSelected.add(value);
+
+  document.querySelectorAll("#tptAbcToggle .fa-group-btn").forEach(btn => {
+    btn.classList.toggle("active", TPT.abcSelected.has(btn.textContent));
+  });
+
+  filterTrackingPT();
+}
+
 function filterTrackingPT() {
   if (!TPT.data) return;
   const q    = (document.getElementById("tptSearch")?.value    || "").toLowerCase().trim();
   const cat  = (document.getElementById("tptCategoria")?.value || "").toLowerCase();
   const arom = (document.getElementById("tptAroma")?.value     || "").toLowerCase();
-  const abc  = (document.getElementById("tptAbc")?.value       || "").toLowerCase();
+  const abcSet = new Set([...TPT.abcSelected].map(v => v.toLowerCase()));
 
   TPT.filtered = TPT.data.rows.filter(r => {
     if (q    && !r.producto.toLowerCase().includes(q) && !r.ean.includes(q)) return false;
     if (cat  && r.categoria.toLowerCase() !== cat)  return false;
     if (arom && r.aroma.toLowerCase()     !== arom) return false;
-    if (abc  && r.abc.toLowerCase()       !== abc)  return false;
+    if (abcSet.size && !abcSet.has(r.abc.toLowerCase())) return false;
     return true;
   });
 
-  const hasFilter = q || cat || arom || abc;
+  const hasFilter = q || cat || arom || abcSet.size > 0;
   const btn = document.getElementById("tptBtnClear");
   if (btn) btn.style.display = hasFilter ? "" : "none";
 
@@ -2944,6 +2960,7 @@ function resetTrackingPT() {
   document.getElementById("tptSearch").value    = "";
   document.getElementById("tptCategoria").value = "";
   document.getElementById("tptAroma").value     = "";
-  document.getElementById("tptAbc").value       = "";
+  TPT.abcSelected.clear();
+  document.querySelectorAll("#tptAbcToggle .fa-group-btn").forEach(btn => btn.classList.remove("active"));
   filterTrackingPT();
 }
