@@ -1858,33 +1858,6 @@ function initBoChart() {
   });
 }
 
-// ── CLIENTES GRID ─────────────────────────────────────────────
-function renderClientesGrid() {
-  const grid     = document.getElementById("clientesGrid");
-  const clientes = STATE.kpis.top_clientes || [];
-  if (!grid) return;
-
-  if (!clientes.length) {
-    grid.innerHTML = `<div style="color:#bbb;text-align:center;padding:40px">Sin datos</div>`;
-    return;
-  }
-
-  grid.innerHTML = clientes.map(c => `
-    <div class="cliente-card ${c.fr_color}" onclick="filterByCliente('${esc(c.cliente)}');showSection('dashboard')">
-      <div class="cc-name">${esc(c.cliente)}</div>
-      <div class="cc-fr ${c.fr_color}">${fmtPct(c.fr)}</div>
-      <div class="cc-sub">Fill Rate mes actual</div>
-      <div class="cc-bar-wrap">
-        <div class="cc-bar" style="width:${c.fr}%;background:${semColorHex(c.semaforo)}"></div>
-      </div>
-      <div class="cc-stats">
-        <span><strong>${fmtNum(c.bo_un)}</strong> UN pend.</span>
-        <span><strong>${c.n_ocs}</strong> OC${c.n_ocs !== 1 ? 's' : ''}</span>
-      </div>
-    </div>
-  `).join("");
-}
-
 // ── NAVBAR ────────────────────────────────────────────────────
 function updateNavbar(data) {
   setEl("navTime",  `Actualizado: ${data.updated_at || "—"} · Próximo refresco en`);
