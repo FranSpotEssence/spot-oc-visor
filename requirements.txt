@@ -9,3 +9,4 @@ python-dotenv==1.0.1
 gunicorn==22.0.0
 numpy==1.26.4
 anthropic==0.40.0
+tzdata
