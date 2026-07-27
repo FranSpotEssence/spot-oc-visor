@@ -753,6 +753,26 @@
       <!-- ══════════ PANEL: NIVEL CLIENTE ══════════ -->
       <div id="faPanelCliente" class="d-none">
 
+        <!-- ── KPI general Cliente-SKU ── -->
+        <div class="kpi-grid" style="grid-template-columns:2fr 1fr;margin-bottom:16px">
+          <div class="kpi-fr" id="faKpiCliSkuMain">
+            <div>
+              <div class="fr-main-label">FA General — Combinaciones Cliente-SKU</div>
+              <div class="fr-main-value" id="faKpiCliSkuValue">—</div>
+              <div class="fr-main-sub" id="faKpiCliSkuSub"></div>
+            </div>
+            <span class="fr-main-badge">PONDERADO POR VOLUMEN</span>
+          </div>
+          <div class="kpi-s s-neu">
+            <div>
+              <div class="kpi-s-lbl">Combinaciones Cliente-SKU</div>
+              <div class="kpi-s-val" id="faKpiCliSkuCount">—</div>
+              <div class="kpi-s-sub">en el periodo seleccionado</div>
+            </div>
+            <div class="kpi-s-dot"></div>
+          </div>
+        </div>
+
         <!-- ── Heatmap Cliente × Mes ── -->
         <div class="panel mt-1">
           <div class="panel-head">

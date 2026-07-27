@@ -140,7 +140,35 @@
     _renderRanking(view.ranking);
     _renderHeatmap(view.heatmap);
     _renderSkuTable(view.sku_table);
+    _renderCliSkuKpi(raw, view.cliente_sku_detail.length);
     faRenderGroupTable();
+  }
+
+  /* ── KPI general: FA ponderado por volumen entre todas las combinaciones Cliente-SKU ──
+     Suma el error absoluto y el forecast de TODAS las combinaciones cliente-SKU-mes del
+     periodo (no promedia los % individuales), de modo que las combinaciones con mayor
+     volumen de forecast pesen más en el resultado — misma fórmula que el resto del módulo. */
+  function _renderCliSkuKpi(rawRows, nCombos) {
+    const mEl   = document.getElementById('faKpiCliSkuMain');
+    const vEl   = document.getElementById('faKpiCliSkuValue');
+    const sEl   = document.getElementById('faKpiCliSkuSub');
+    const cntEl = document.getElementById('faKpiCliSkuCount');
+    if (!mEl || !vEl) return;
+
+    if (!rawRows || !rawRows.length) {
+      mEl.className = 'kpi-fr c-red';
+      vEl.textContent = '—';
+      if (sEl) sEl.textContent = 'Sin combinaciones en el periodo';
+      if (cntEl) cntEl.textContent = '0';
+      return;
+    }
+
+    const fa = _faAgg(rawRows).fa;
+
+    mEl.className = 'kpi-fr c-' + faSClass(fa);
+    vEl.textContent = fa.toFixed(1) + '%';
+    if (sEl) sEl.textContent = 'Ponderado por volumen: cada combinación pesa según su forecast';
+    if (cntEl) cntEl.textContent = nCombos;
   }
 
   /* ── Filtro de periodo: Desde / Hasta (siempre consecutivos) ────── */
