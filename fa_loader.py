@@ -628,6 +628,7 @@ def get_fa_data(force: bool = False) -> dict:
         return _fa_cache
 
     # 1 — Intentar SharePoint via link compartido
+    sharepoint_error = None
     try:
         fc_bytes, fc_name, sop_bytes, sop_name = _download_fa_from_sharepoint()
         ultimo_mes = _extract_ultimo_mes(sop_name)
@@ -639,13 +640,14 @@ def get_fa_data(force: bool = False) -> dict:
         log.info("FA cargada desde SharePoint")
         return result
     except Exception as e_sp:
-        log.warning("SharePoint no disponible para FA (%s); intentando carpeta local…", e_sp)
+        sharepoint_error = str(e_sp)
+        log.warning("SharePoint no disponible para FA (%s); intentando carpeta local…", sharepoint_error)
 
     # 2 — Fallback: carpeta local
     folder = Config.FA_DATA_FOLDER
     if not folder or not os.path.isdir(folder):
         err = {
-            'error': f"No se pudo acceder a SharePoint ({e_sp}) y la carpeta local no está disponible.",
+            'error': f"No se pudo acceder a SharePoint ({sharepoint_error}) y la carpeta local no está disponible.",
             **_empty_result(),
         }
         _fa_cache = err
