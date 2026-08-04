@@ -459,6 +459,7 @@ def api_backorder_sku():
         rows.append({
             "cliente":        str(r.get("cliente", "")),
             "sku":            _s(r.get("ean_spot")),
+            "producto":       _s(r.get("producto")),
             "fecha_despacho": _fmt_date(fd),
             "fecha_raw":      fd.strftime("%Y-%m-%d") if pd.notna(fd) else "",
             "oc":             str(r.get("oc", "")),
@@ -475,6 +476,7 @@ def api_backorder_sku():
         rows = [r for r in rows if (
             q in r["cliente"].lower() or
             q in r["sku"].lower() or
+            q in r["producto"].lower() or
             q in r["oc"].lower()
         )]
 
