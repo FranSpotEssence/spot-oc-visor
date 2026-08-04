@@ -327,6 +327,13 @@ body {
 .kpi-grid-sm .kpi-s-lbl       { font-size: 7px; }
 .kpi-grid-sm .kpi-s-sub       { font-size: 8px; }
 
+/* Grilla KPI simétrica y centrada en la página (ej. Back Order Cliente-SKU) */
+.kpi-grid-centered {
+  max-width: 560px;
+  justify-items: center;
+}
+.kpi-grid-centered > * { width: 100%; }
+
 /* Skeleton loading */
 .kpi-skeleton {
   border-radius: var(--radius-lg);
