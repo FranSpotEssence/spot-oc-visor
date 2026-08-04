@@ -1686,9 +1686,9 @@ function renderBackorderSku() {
   tbody.innerHTML = rows.map(r => `
     <tr>
       <td><span class="cliente-chip c-yellow">${esc(r.cliente)}</span></td>
+      <td style="text-align:center">${esc(r.fecha_despacho)}</td>
       <td class="font-mono" style="font-size:11px">${esc(r.sku)}</td>
       <td style="max-width:220px">${esc(r.producto)}</td>
-      <td style="text-align:center">${esc(r.fecha_despacho)}</td>
       <td style="text-align:center;font-weight:700">${fmtNum(r.bo_un)}</td>
       <td style="color:#666;font-size:12px">${esc(r.comentario) || "—"}</td>
     </tr>
