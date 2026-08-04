@@ -547,9 +547,6 @@ async function openDetail(ocId, cliente, fechaIso) {
               <div class="pct-fill" style="width:${s.fr}%;background:${fillColor}"></div>
             </div>
           </td>
-          <td>
-            <span style="font-size:10px;${s.stock === 0 ? 'color:#dc2626;font-weight:700' : 'color:#555'}">${fmtNum(s.stock)}</span>
-          </td>
           <td>${motivoHtml}</td>
         </tr>
       `;
@@ -583,7 +580,6 @@ async function openDetail(ocId, cliente, fechaIso) {
               <th>Asign.</th>
               <th>Pendiente</th>
               <th>FR SKU</th>
-              <th>Stock</th>
               <th>Comentario</th>
             </tr>
           </thead>
