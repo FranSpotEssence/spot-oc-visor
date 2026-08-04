@@ -1632,7 +1632,7 @@ async function loadBackorderSku() {
     filterBackorderSku();
   } catch (e) {
     document.getElementById("boSkuBody").innerHTML =
-      `<tr><td colspan="7" class="text-center py-4" style="color:#dc2626">Error cargando datos: ${e.message}</td></tr>`;
+      `<tr><td colspan="6" class="text-center py-4" style="color:#dc2626">Error cargando datos: ${e.message}</td></tr>`;
   }
 }
 
@@ -1677,7 +1677,7 @@ function renderBackorderSku() {
   if (!tbody) return;
 
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted">Sin resultados</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted">Sin resultados</td></tr>`;
     document.getElementById("boSkuCount").textContent = "0";
     document.getElementById("boSkuFooter").textContent = "";
     return;
@@ -1689,7 +1689,6 @@ function renderBackorderSku() {
       <td class="font-mono" style="font-size:11px">${esc(r.sku)}</td>
       <td style="max-width:220px">${esc(r.producto)}</td>
       <td style="text-align:center">${esc(r.fecha_despacho)}</td>
-      <td class="font-mono">${esc(r.oc)}</td>
       <td style="text-align:center;font-weight:700">${fmtNum(r.bo_un)}</td>
       <td style="color:#666;font-size:12px">${esc(r.comentario) || "—"}</td>
     </tr>
