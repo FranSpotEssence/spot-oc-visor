@@ -1628,6 +1628,10 @@ async function loadBackorderSku() {
     const clientes = [...new Set(BOSKU.rows.map(r => r.cliente))].sort();
     _boSkuBuildMultiSelect(clientes);
 
+    const categorias = [...new Set(BOSKU.rows.map(r => r.categoria).filter(Boolean))].sort();
+    const catSel = document.getElementById("boSkuFilterCategoria");
+    if (catSel) categorias.forEach(c => catSel.insertAdjacentHTML("beforeend", `<option value="${esc(c)}">${esc(c)}</option>`));
+
     filterBackorderSku();
   } catch (e) {
     document.getElementById("boSkuBody").innerHTML =
@@ -1709,16 +1713,18 @@ function boSkuMsClear() {
 }
 
 function filterBackorderSku() {
-  const q = (document.getElementById("boSkuSearch")?.value || "").toLowerCase().trim();
+  const q   = (document.getElementById("boSkuSearch")?.value || "").toLowerCase().trim();
+  const cat = document.getElementById("boSkuFilterCategoria")?.value || "";
 
   BOSKU.filtered = BOSKU.rows.filter(r => {
     if (BOSKU.selectedClientes.size > 0 && !BOSKU.selectedClientes.has(r.cliente)) return false;
+    if (cat && r.categoria !== cat) return false;
     if (q && !r.cliente.toLowerCase().includes(q) && !r.sku.toLowerCase().includes(q)
           && !r.producto.toLowerCase().includes(q) && !r.oc.toLowerCase().includes(q)) return false;
     return true;
   });
 
-  const hasFilter = q || BOSKU.selectedClientes.size > 0;
+  const hasFilter = q || cat || BOSKU.selectedClientes.size > 0;
   const btn = document.getElementById("btnClearBoSku");
   if (btn) btn.style.display = hasFilter ? "" : "none";
 
@@ -1774,6 +1780,8 @@ function renderBackorderSku() {
 function resetBackorderSku() {
   const search = document.getElementById("boSkuSearch");
   if (search) search.value = "";
+  const catSel = document.getElementById("boSkuFilterCategoria");
+  if (catSel) catSel.value = "";
   boSkuMsClear();
   filterBackorderSku();
 }

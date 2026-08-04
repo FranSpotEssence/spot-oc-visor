@@ -460,6 +460,7 @@ def api_backorder_sku():
             "cliente":        str(r.get("cliente", "")),
             "sku":            _s(r.get("ean_spot")),
             "producto":       _s(r.get("producto")),
+            "categoria":      _s(r.get("categoria")),
             "fecha_despacho": _fmt_date(fd),
             "fecha_raw":      fd.strftime("%Y-%m-%d") if pd.notna(fd) else "",
             "oc":             str(r.get("oc", "")),
