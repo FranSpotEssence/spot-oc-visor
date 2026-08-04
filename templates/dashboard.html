@@ -394,6 +394,26 @@
         <p class="page-sub">Unidades pendientes por combinación cliente-SKU · OCs en curso</p>
       </div>
 
+      <!-- ── KPI total (dinámico según filtros aplicados) ── -->
+      <div class="kpi-grid" style="grid-template-columns:2fr 1fr;margin-bottom:16px">
+        <div class="kpi-fr c-red" id="boSkuKpiMain">
+          <div>
+            <div class="fr-main-label">Total Back Order (Unidades)</div>
+            <div class="fr-main-value" id="boSkuKpiValue">—</div>
+            <div class="fr-main-sub" id="boSkuKpiSub"></div>
+          </div>
+          <span class="fr-main-badge">SEGÚN FILTROS APLICADOS</span>
+        </div>
+        <div class="kpi-s s-neu">
+          <div>
+            <div class="kpi-s-lbl">Líneas Cliente-SKU</div>
+            <div class="kpi-s-val" id="boSkuKpiLineas">—</div>
+            <div class="kpi-s-sub">con back order &gt; 0</div>
+          </div>
+          <div class="kpi-s-dot"></div>
+        </div>
+      </div>
+
       <div class="panel">
         <div class="panel-head" style="flex-wrap:wrap;gap:8px;align-items:center">
           <span class="panel-title">Back Order</span>
@@ -920,7 +940,7 @@
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
-<script src="/static/js/dashboard.js?v=20260804e"></script>
+<script src="/static/js/dashboard.js?v=20260804f"></script>
 <script src="/static/js/fa.js?v=20260712a"></script>
 </body>
 </html>

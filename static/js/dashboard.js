@@ -1753,6 +1753,8 @@ function renderBackorderSku() {
   const tbody = document.getElementById("boSkuBody");
   if (!tbody) return;
 
+  _renderBoSkuKpi(rows);
+
   if (!rows.length) {
     tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted">Sin resultados</td></tr>`;
     document.getElementById("boSkuCount").textContent = "0";
@@ -1775,6 +1777,22 @@ function renderBackorderSku() {
     rows.length + (BOSKU.rows.length !== rows.length ? ` / ${BOSKU.rows.length}` : "");
   document.getElementById("boSkuFooter").textContent =
     `${rows.length} línea${rows.length !== 1 ? "s" : ""}${BOSKU.rows.length !== rows.length ? ` de ${BOSKU.rows.length} totales` : ""}`;
+}
+
+function _renderBoSkuKpi(rows) {
+  const vEl   = document.getElementById("boSkuKpiValue");
+  const sEl   = document.getElementById("boSkuKpiSub");
+  const lEl   = document.getElementById("boSkuKpiLineas");
+  if (!vEl) return;
+
+  const total = rows.reduce((s, r) => s + (r.bo_un || 0), 0);
+  const isFiltered = rows.length !== BOSKU.rows.length;
+
+  vEl.textContent = fmtNum(total) + " UN";
+  if (sEl) sEl.textContent = isFiltered
+    ? `Filtrado: ${rows.length} de ${BOSKU.rows.length} líneas`
+    : `Todas las líneas (${BOSKU.rows.length})`;
+  if (lEl) lEl.textContent = rows.length;
 }
 
 function resetBackorderSku() {
