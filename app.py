@@ -447,6 +447,40 @@ def api_backorder_detail():
     return jsonify({"rows": rows, "total": len(rows)})
 
 
+@app.route("/api/backorder-sku")
+@_login_required
+def api_backorder_sku():
+    """Back order a nivel Cliente-SKU: fecha despacho, OC, unidades pendientes y comentario."""
+    df = get_bo_detail_df()
+
+    rows = []
+    for _, r in df.iterrows():
+        fd = r.get("fecha_despacho")
+        rows.append({
+            "cliente":        str(r.get("cliente", "")),
+            "sku":            _s(r.get("ean_spot")),
+            "fecha_despacho": _fmt_date(fd),
+            "fecha_raw":      fd.strftime("%Y-%m-%d") if pd.notna(fd) else "",
+            "oc":             str(r.get("oc", "")),
+            "bo_un":          int(r.get("bo_un", 0)),
+            "comentario":     _s(r.get("comentarios")),
+        })
+
+    cliente = request.args.get("cliente", "").strip().lower()
+    q       = request.args.get("q",       "").strip().lower()
+
+    if cliente:
+        rows = [r for r in rows if cliente in r["cliente"].lower()]
+    if q:
+        rows = [r for r in rows if (
+            q in r["cliente"].lower() or
+            q in r["sku"].lower() or
+            q in r["oc"].lower()
+        )]
+
+    return jsonify({"rows": rows, "total": len(rows)})
+
+
 @app.route("/api/fr-historico")
 @_login_required
 def api_fr_historico():

@@ -1613,6 +1613,100 @@ function clearBoFilters() {
   if (csvLink) csvLink.href = "/api/export/backorder-csv";
 }
 
+// ═══════════════════════════════════════════════════════════════
+// BACK ORDER CLIENTE-SKU
+// ═══════════════════════════════════════════════════════════════
+const BOSKU = { rows: [], filtered: [], sortCol: "fecha_raw", sortAsc: true };
+
+async function loadBackorderSku() {
+  if (BOSKU.rows.length) { filterBackorderSku(); return; }
+  try {
+    const res  = await fetch("/api/backorder-sku");
+    const json = await res.json();
+    BOSKU.rows = json.rows || [];
+
+    const clientes = [...new Set(BOSKU.rows.map(r => r.cliente))].sort();
+    const sel = document.getElementById("boSkuFilterCliente");
+    if (sel) clientes.forEach(c => sel.insertAdjacentHTML("beforeend", `<option value="${esc(c)}">${esc(c)}</option>`));
+
+    filterBackorderSku();
+  } catch (e) {
+    document.getElementById("boSkuBody").innerHTML =
+      `<tr><td colspan="6" class="text-center py-4" style="color:#dc2626">Error cargando datos: ${e.message}</td></tr>`;
+  }
+}
+
+function filterBackorderSku() {
+  const q   = (document.getElementById("boSkuSearch")?.value || "").toLowerCase().trim();
+  const cli = (document.getElementById("boSkuFilterCliente")?.value || "").toLowerCase();
+
+  BOSKU.filtered = BOSKU.rows.filter(r => {
+    if (cli && r.cliente.toLowerCase() !== cli) return false;
+    if (q && !r.cliente.toLowerCase().includes(q) && !r.sku.toLowerCase().includes(q) && !r.oc.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  const hasFilter = q || cli;
+  const btn = document.getElementById("btnClearBoSku");
+  if (btn) btn.style.display = hasFilter ? "" : "none";
+
+  sortAndRenderBoSku();
+}
+
+function sortBackorderSku(col) {
+  if (BOSKU.sortCol === col) BOSKU.sortAsc = !BOSKU.sortAsc;
+  else { BOSKU.sortCol = col; BOSKU.sortAsc = col === "fecha_raw"; }
+  sortAndRenderBoSku();
+}
+
+function sortAndRenderBoSku() {
+  const col = BOSKU.sortCol;
+  const asc = BOSKU.sortAsc;
+  BOSKU.filtered.sort((a, b) => {
+    const va = a[col] ?? "", vb = b[col] ?? "";
+    if (typeof va === "number" && typeof vb === "number") return asc ? va - vb : vb - va;
+    return asc ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+  });
+  renderBackorderSku();
+}
+
+function renderBackorderSku() {
+  const rows  = BOSKU.filtered;
+  const tbody = document.getElementById("boSkuBody");
+  if (!tbody) return;
+
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted">Sin resultados</td></tr>`;
+    document.getElementById("boSkuCount").textContent = "0";
+    document.getElementById("boSkuFooter").textContent = "";
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td><span class="cliente-chip c-yellow">${esc(r.cliente)}</span></td>
+      <td class="font-mono" style="font-size:11px">${esc(r.sku)}</td>
+      <td style="text-align:center">${esc(r.fecha_despacho)}</td>
+      <td class="font-mono">${esc(r.oc)}</td>
+      <td style="text-align:center;font-weight:700">${fmtNum(r.bo_un)}</td>
+      <td style="color:#666;font-size:12px">${esc(r.comentario) || "—"}</td>
+    </tr>
+  `).join("");
+
+  document.getElementById("boSkuCount").textContent =
+    rows.length + (BOSKU.rows.length !== rows.length ? ` / ${BOSKU.rows.length}` : "");
+  document.getElementById("boSkuFooter").textContent =
+    `${rows.length} línea${rows.length !== 1 ? "s" : ""}${BOSKU.rows.length !== rows.length ? ` de ${BOSKU.rows.length} totales` : ""}`;
+}
+
+function resetBackorderSku() {
+  const search = document.getElementById("boSkuSearch");
+  if (search) search.value = "";
+  const sel = document.getElementById("boSkuFilterCliente");
+  if (sel) sel.value = "";
+  filterBackorderSku();
+}
+
 function renderLossTree(rows) {
   const ctx = document.getElementById("lossTreeChart")?.getContext("2d");
   const tbl = document.getElementById("lossTreeTable");
@@ -1756,7 +1850,7 @@ function frChipBo(fr) {
 
 // ── SECCIONES ─────────────────────────────────────────────────
 function showSection(name) {
-  const sections = ["dashboard","fillrate","backorder","bodetalle","frhistorico","frmes","spotia","trackingpt","fa"];
+  const sections = ["dashboard","fillrate","backorder","bodetalle","bosku","frhistorico","frmes","spotia","trackingpt","fa"];
   sections.forEach(s => {
     const el = document.getElementById(`section${cap(s)}`);
     if (el) el.classList.toggle("d-none", s !== name);
@@ -1769,6 +1863,7 @@ function showSection(name) {
   if (name === "fillrate")    initFrChart();
   if (name === "backorder")   initBoChart();
   if (name === "bodetalle")   loadBoDetail();
+  if (name === "bosku")       loadBackorderSku();
   if (name === "frhistorico") loadFrHistorico();
   if (name === "frmes")       loadFrMes();
   if (name === "spotia")      initSpotia();

@@ -60,6 +60,7 @@
       </a>
       -->
       <a href="#" class="sb-item" onclick="showSection('frhistorico')">Fill Rate Histórico</a>
+      <a href="#" class="sb-item" onclick="showSection('bosku')">Back Order Cliente-SKU</a>
     </div>
 
     <div class="sb-group">
@@ -384,6 +385,47 @@
           </div>
         </div>
 
+    </section>
+
+    <!-- ══ SECCIÓN: BACK ORDER CLIENTE-SKU ══ -->
+    <section id="sectionBosku" class="d-none">
+      <div class="page-header">
+        <h1 class="page-title">Back Order Cliente-SKU</h1>
+        <p class="page-sub">Unidades pendientes por combinación cliente-SKU · OCs en curso</p>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head" style="flex-wrap:wrap;gap:8px;align-items:center">
+          <span class="panel-title">Back Order</span>
+          <span class="panel-count" id="boSkuCount">—</span>
+          <div class="panel-filters ms-auto">
+            <input type="text" id="boSkuSearch" class="search-inp" placeholder="Buscar cliente, SKU u OC..."
+              oninput="filterBackorderSku()">
+            <select id="boSkuFilterCliente" class="filter-select" onchange="filterBackorderSku()">
+              <option value="">Todos los clientes</option>
+            </select>
+            <button class="clear-btn" id="btnClearBoSku" onclick="resetBackorderSku()" style="display:none">Limpiar filtros</button>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="spot-table w-100">
+            <thead>
+              <tr>
+                <th onclick="sortBackorderSku('cliente')" style="cursor:pointer">Cliente ↕</th>
+                <th onclick="sortBackorderSku('sku')" style="cursor:pointer">SKU ↕</th>
+                <th onclick="sortBackorderSku('fecha_raw')" style="cursor:pointer;text-align:center">F. Despacho ↕</th>
+                <th onclick="sortBackorderSku('oc')" style="cursor:pointer">N° OC ↕</th>
+                <th onclick="sortBackorderSku('bo_un')" style="cursor:pointer;text-align:center">Back Order (UN) ↕</th>
+                <th>Comentario</th>
+              </tr>
+            </thead>
+            <tbody id="boSkuBody">
+              <tr><td colspan="6" class="text-center py-4 text-muted">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="boSkuFooter" class="panel-foot"></div>
+      </div>
     </section>
 
     <!-- ══ SECCIÓN: DETALLE BACK ORDER ══ -->
