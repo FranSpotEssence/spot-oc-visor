@@ -316,6 +316,17 @@ body {
 .kpi-s.s-red    .kpi-s-dot { background: var(--c-red); }
 .kpi-s.s-neu    .kpi-s-dot { background: #000; }
 
+/* Variante reducida (~10%) — tarjetas KPI más compactas, ej. Back Order Cliente-SKU */
+.kpi-grid-sm .kpi-fr          { padding: 22px 23px; min-height: 122px; }
+.kpi-grid-sm .fr-main-value   { font-size: 49px; }
+.kpi-grid-sm .fr-main-label   { font-size: 8px; }
+.kpi-grid-sm .fr-main-sub     { font-size: 8px; }
+.kpi-grid-sm .fr-main-badge   { font-size: 7px; padding: 4px 10px; }
+.kpi-grid-sm .kpi-s           { padding: 16px 14px; min-height: 122px; }
+.kpi-grid-sm .kpi-s-val       { font-size: 27px; }
+.kpi-grid-sm .kpi-s-lbl       { font-size: 7px; }
+.kpi-grid-sm .kpi-s-sub       { font-size: 8px; }
+
 /* Skeleton loading */
 .kpi-skeleton {
   border-radius: var(--radius-lg);
