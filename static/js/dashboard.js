@@ -1616,7 +1616,7 @@ function clearBoFilters() {
 // ═══════════════════════════════════════════════════════════════
 // BACK ORDER CLIENTE-SKU
 // ═══════════════════════════════════════════════════════════════
-const BOSKU = { rows: [], filtered: [], sortCol: "fecha_raw", sortAsc: true };
+const BOSKU = { rows: [], filtered: [], sortCol: "fecha_raw", sortAsc: true, selectedClientes: new Set() };
 
 async function loadBackorderSku() {
   if (BOSKU.rows.length) { filterBackorderSku(); return; }
@@ -1626,8 +1626,7 @@ async function loadBackorderSku() {
     BOSKU.rows = json.rows || [];
 
     const clientes = [...new Set(BOSKU.rows.map(r => r.cliente))].sort();
-    const sel = document.getElementById("boSkuFilterCliente");
-    if (sel) clientes.forEach(c => sel.insertAdjacentHTML("beforeend", `<option value="${esc(c)}">${esc(c)}</option>`));
+    _boSkuBuildMultiSelect(clientes);
 
     filterBackorderSku();
   } catch (e) {
@@ -1636,18 +1635,90 @@ async function loadBackorderSku() {
   }
 }
 
+// ── Multi-select clientes ────────────────────────────────────────
+function _boSkuBuildMultiSelect(clientes) {
+  const cont = document.getElementById("boSkuMsOptions");
+  if (!cont) return;
+  cont.innerHTML = clientes.map(c => `
+    <label class="frm-ms-opt">
+      <input type="checkbox" value="${esc(c)}" checked onchange="boSkuMsChange()">
+      <span>${esc(c)}</span>
+    </label>
+  `).join("");
+}
+
+function boSkuMsToggle(e) {
+  if (e) e.stopPropagation();
+  const dd = document.getElementById("boSkuMsDropdown");
+  if (!dd) return;
+  const isOpen = !dd.classList.contains("d-none");
+  dd.classList.toggle("d-none");
+  if (!isOpen) {
+    document.addEventListener("click", _boSkuMsOutside);
+  } else {
+    document.removeEventListener("click", _boSkuMsOutside);
+  }
+}
+function _boSkuMsOutside(e) {
+  const wrap = document.getElementById("boSkuMsWrap");
+  if (wrap && !wrap.contains(e.target)) {
+    const dd = document.getElementById("boSkuMsDropdown");
+    if (dd) dd.classList.add("d-none");
+    document.removeEventListener("click", _boSkuMsOutside);
+  }
+}
+
+function boSkuMsToggleAll(cb) {
+  document.querySelectorAll("#boSkuMsOptions input[type=checkbox]").forEach(el => { el.checked = cb.checked; });
+  boSkuMsChange();
+}
+
+function boSkuMsChange() {
+  const checked = [...document.querySelectorAll("#boSkuMsOptions input:checked")].map(el => el.value);
+  const allCb   = document.getElementById("boSkuMsAll");
+  const total   = document.querySelectorAll("#boSkuMsOptions input").length;
+  if (allCb) allCb.checked = checked.length === total;
+  BOSKU.selectedClientes = checked.length === total ? new Set() : new Set(checked);
+  _boSkuUpdateChips(checked, total);
+  filterBackorderSku();
+}
+
+function _boSkuUpdateChips(checked, total) {
+  const chips    = document.getElementById("boSkuMsChips");
+  const label    = document.getElementById("boSkuMsLabel");
+  const isAll    = checked.length === total || checked.length === 0;
+
+  if (label) label.textContent = isAll ? "Todos los clientes" : `${checked.length} cliente${checked.length > 1 ? "s" : ""}`;
+  if (!chips) return;
+  chips.innerHTML = isAll ? "" : checked.map(c =>
+    `<span class="frm-chip">${esc(c)}<button onclick="boSkuMsRemove('${esc(c)}')" title="Quitar">×</button></span>`
+  ).join("");
+}
+
+function boSkuMsRemove(cliente) {
+  const cb = document.querySelector(`#boSkuMsOptions input[value="${cliente}"]`);
+  if (cb) { cb.checked = false; boSkuMsChange(); }
+}
+
+function boSkuMsClear() {
+  document.querySelectorAll("#boSkuMsOptions input").forEach(el => el.checked = true);
+  const allCb = document.getElementById("boSkuMsAll");
+  if (allCb) allCb.checked = true;
+  BOSKU.selectedClientes = new Set();
+  _boSkuUpdateChips([], 0);
+}
+
 function filterBackorderSku() {
-  const q   = (document.getElementById("boSkuSearch")?.value || "").toLowerCase().trim();
-  const cli = (document.getElementById("boSkuFilterCliente")?.value || "").toLowerCase();
+  const q = (document.getElementById("boSkuSearch")?.value || "").toLowerCase().trim();
 
   BOSKU.filtered = BOSKU.rows.filter(r => {
-    if (cli && r.cliente.toLowerCase() !== cli) return false;
+    if (BOSKU.selectedClientes.size > 0 && !BOSKU.selectedClientes.has(r.cliente)) return false;
     if (q && !r.cliente.toLowerCase().includes(q) && !r.sku.toLowerCase().includes(q)
           && !r.producto.toLowerCase().includes(q) && !r.oc.toLowerCase().includes(q)) return false;
     return true;
   });
 
-  const hasFilter = q || cli;
+  const hasFilter = q || BOSKU.selectedClientes.size > 0;
   const btn = document.getElementById("btnClearBoSku");
   if (btn) btn.style.display = hasFilter ? "" : "none";
 
@@ -1703,8 +1774,7 @@ function renderBackorderSku() {
 function resetBackorderSku() {
   const search = document.getElementById("boSkuSearch");
   if (search) search.value = "";
-  const sel = document.getElementById("boSkuFilterCliente");
-  if (sel) sel.value = "";
+  boSkuMsClear();
   filterBackorderSku();
 }
 

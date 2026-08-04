@@ -401,9 +401,20 @@
           <div class="panel-filters ms-auto">
             <input type="text" id="boSkuSearch" class="search-inp" placeholder="Buscar cliente, SKU u OC..."
               oninput="filterBackorderSku()">
-            <select id="boSkuFilterCliente" class="filter-select" onchange="filterBackorderSku()">
-              <option value="">Todos los clientes</option>
-            </select>
+            <div class="frm-ms-wrap" id="boSkuMsWrap">
+              <div class="frm-ms-trigger" id="boSkuMsTrigger" onclick="boSkuMsToggle(event)">
+                <span id="boSkuMsLabel">Todos los clientes</span>
+                <span style="margin-left:6px;color:#888">▾</span>
+              </div>
+              <div class="frm-ms-dropdown d-none" id="boSkuMsDropdown">
+                <label class="frm-ms-opt frm-ms-all">
+                  <input type="checkbox" id="boSkuMsAll" checked onchange="boSkuMsToggleAll(this)">
+                  <span>Todos</span>
+                </label>
+                <div id="boSkuMsOptions"></div>
+              </div>
+            </div>
+            <div id="boSkuMsChips" class="frm-ms-chips"></div>
             <button class="clear-btn" id="btnClearBoSku" onclick="resetBackorderSku()" style="display:none">Limpiar filtros</button>
           </div>
         </div>
@@ -906,7 +917,7 @@
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
-<script src="/static/js/dashboard.js?v=20260804c"></script>
+<script src="/static/js/dashboard.js?v=20260804d"></script>
 <script src="/static/js/fa.js?v=20260712a"></script>
 </body>
 </html>
