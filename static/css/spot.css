@@ -250,7 +250,18 @@ body {
   min-height: 90px;
 }
 .week-cal-day:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
-.week-cal-day.today { border-color: #000; border-width: 2px; background: #fff; }
+.week-cal-day.today {
+  background: var(--spot-black);
+  border-color: var(--spot-black);
+  transform: scale(1.06);
+  box-shadow: var(--shadow-md);
+  z-index: 1;
+  position: relative;
+}
+.week-cal-day.today:hover { transform: scale(1.06) translateY(-2px); }
+.week-cal-day.today .week-cal-dow  { color: #fff; }
+.week-cal-day.today .week-cal-divider { background: rgba(255,255,255,.25); }
+.week-cal-day.today .week-cal-clients-empty { color: rgba(255,255,255,.5); }
 .week-cal-dow  { font-size: 9px; font-weight: 800; letter-spacing: .5px; color: #666; text-transform: uppercase; }
 
 .week-cal-divider {
