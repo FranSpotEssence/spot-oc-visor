@@ -242,56 +242,44 @@ body {
 .week-cal-day {
   border: 1px solid var(--spot-border);
   border-radius: var(--radius-md);
-  padding: 8px 4px 10px;
+  padding: 8px 6px 10px;
   text-align: center;
   cursor: pointer;
   transition: transform .15s, box-shadow .15s;
   background: #fafafa;
+  min-height: 90px;
 }
 .week-cal-day:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
 .week-cal-day.today { border-color: #000; border-width: 2px; background: #fff; }
-.week-cal-dow  { font-size: 8px; font-weight: 800; letter-spacing: .6px; color: #888; text-transform: uppercase; margin-bottom: 4px; }
-.week-cal-date { font-size: 15px; font-weight: 900; color: #111; line-height: 1; margin-bottom: 6px; }
-.week-cal-count{ font-size: 20px; font-weight: 900; line-height: 1; }
-.week-cal-label{ font-size: 7.5px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: #999; margin-top: 2px; }
+.week-cal-dow  { font-size: 9px; font-weight: 800; letter-spacing: .5px; color: #666; text-transform: uppercase; }
+
+.week-cal-divider {
+  height: 1px;
+  background: rgba(0,0,0,.12);
+  margin: 7px 0 8px;
+}
 
 .week-cal-clients {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(0,0,0,.06);
+  gap: 4px;
 }
-.week-cal-clients-empty { color: #ccc; font-size: 9px; border-top: none; padding-top: 0; margin-top: 4px; }
+.week-cal-clients-empty { color: #ccc; font-size: 9px; font-weight: 600; }
 .week-cal-client-chip {
-  font-size: 7.5px;
-  font-weight: 700;
-  color: #555;
-  background: rgba(0,0,0,.04);
-  border-radius: 4px;
-  padding: 1px 5px;
-  max-width: 100%;
+  width: 100%;
+  justify-content: center;
+  font-size: 9px !important;
+  padding: 3px 6px !important;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.week-cal-client-more {
-  font-size: 7px;
-  font-weight: 800;
-  color: #999;
-  margin-top: 1px;
-}
 
 .week-cal-day.tone-empty { background: #fafafa; }
-.week-cal-day.tone-empty .week-cal-count { color: #ccc; }
 .week-cal-day.tone-ok    { background: #f0fdf4; border-color: #bbf7d0; }
-.week-cal-day.tone-ok    .week-cal-count { color: var(--c-green); }
 .week-cal-day.tone-warn  { background: #fffbeb; border-color: #fde68a; }
-.week-cal-day.tone-warn  .week-cal-count { color: #ca8a04; }
 .week-cal-day.tone-crit  { background: #fef2f2; border-color: #fecaca; }
-.week-cal-day.tone-crit  .week-cal-count { color: var(--c-red); }
 
 @media (max-width: 768px) {
   .week-cal-grid  { grid-template-columns: repeat(4, 1fr); }
