@@ -255,6 +255,35 @@ body {
 .week-cal-count{ font-size: 20px; font-weight: 900; line-height: 1; }
 .week-cal-label{ font-size: 7.5px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: #999; margin-top: 2px; }
 
+.week-cal-clients {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(0,0,0,.06);
+}
+.week-cal-clients-empty { color: #ccc; font-size: 9px; border-top: none; padding-top: 0; margin-top: 4px; }
+.week-cal-client-chip {
+  font-size: 7.5px;
+  font-weight: 700;
+  color: #555;
+  background: rgba(0,0,0,.04);
+  border-radius: 4px;
+  padding: 1px 5px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.week-cal-client-more {
+  font-size: 7px;
+  font-weight: 800;
+  color: #999;
+  margin-top: 1px;
+}
+
 .week-cal-day.tone-empty { background: #fafafa; }
 .week-cal-day.tone-empty .week-cal-count { color: #ccc; }
 .week-cal-day.tone-ok    { background: #f0fdf4; border-color: #bbf7d0; }

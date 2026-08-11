@@ -101,11 +101,14 @@ function renderWeekCalendar(orders) {
     });
     const pendientes = dayOrders.filter(o => (o.estado || "").toUpperCase() !== "CERRADA");
     const vencidas    = dayOrders.filter(o => (o.estado || "").toUpperCase() === "VENCIDA" || o.es_vencida);
-    return { date: d, dow: DIAS[i], orders: dayOrders, pendientes, vencidas };
+    const clientes    = [...new Set(dayOrders.map(o => o.cliente).filter(Boolean))].sort();
+    return { date: d, dow: DIAS[i], orders: dayOrders, pendientes, vencidas, clientes };
   });
 
   const totalOcs = orders.length;
   if (sub) sub.textContent = `${totalOcs} OC${totalOcs !== 1 ? "s" : ""} con despacho esta semana`;
+
+  const MAX_CLIENTES_VISIBLES = 3;
 
   grid.innerHTML = byDay.map(info => {
     const isToday   = info.date.getTime() === hoy.getTime();
@@ -113,12 +116,22 @@ function renderWeekCalendar(orders) {
     const hasVenc   = info.vencidas.length > 0;
     const tone      = !hasOrders ? "empty" : hasVenc ? "crit" : info.pendientes.length > 0 ? "warn" : "ok";
 
+    const visibles = info.clientes.slice(0, MAX_CLIENTES_VISIBLES);
+    const restantes = info.clientes.length - visibles.length;
+    const clientesHtml = hasOrders
+      ? `<div class="week-cal-clients" title="${esc(info.clientes.join(', '))}">
+           ${visibles.map(c => `<span class="week-cal-client-chip">${esc(c)}</span>`).join("")}
+           ${restantes > 0 ? `<span class="week-cal-client-more">+${restantes}</span>` : ""}
+         </div>`
+      : `<div class="week-cal-clients week-cal-clients-empty">—</div>`;
+
     return `
       <div class="week-cal-day tone-${tone}${isToday ? " today" : ""}" onclick="filterWeekCalDay('${_localISODate(info.date)}')">
         <div class="week-cal-dow">${info.dow}${isToday ? " · HOY" : ""}</div>
         <div class="week-cal-date">${info.date.getDate()}</div>
         <div class="week-cal-count">${info.orders.length}</div>
         <div class="week-cal-label">OC${info.orders.length !== 1 ? "s" : ""}</div>
+        ${clientesHtml}
       </div>`;
   }).join("");
 }
