@@ -69,6 +69,71 @@ function setWeekRangeTitle() {
   el.textContent = `semana ${rango}`;
 }
 
+// Formatea una fecha local como YYYY-MM-DD sin pasar por UTC (evita corrimiento de día)
+function _localISODate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+// ── Calendario de despachos — semana en curso ─────────────────
+function renderWeekCalendar(orders) {
+  const grid = document.getElementById("weekCalGrid");
+  const sub  = document.getElementById("weekCalSub");
+  if (!grid) return;
+
+  const DIAS = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"];
+  const { lunes } = currentWeekBounds();
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + i);
+    days.push(d);
+  }
+
+  const byDay = days.map((d, i) => {
+    const dayOrders = orders.filter(o => {
+      const od = parseDispatchDate(o.fecha_despacho);
+      return od && od.getFullYear() === d.getFullYear() && od.getMonth() === d.getMonth() && od.getDate() === d.getDate();
+    });
+    const pendientes = dayOrders.filter(o => (o.estado || "").toUpperCase() !== "CERRADA");
+    const vencidas    = dayOrders.filter(o => (o.estado || "").toUpperCase() === "VENCIDA" || o.es_vencida);
+    return { date: d, dow: DIAS[i], orders: dayOrders, pendientes, vencidas };
+  });
+
+  const totalOcs = orders.length;
+  if (sub) sub.textContent = `${totalOcs} OC${totalOcs !== 1 ? "s" : ""} con despacho esta semana`;
+
+  grid.innerHTML = byDay.map(info => {
+    const isToday   = info.date.getTime() === hoy.getTime();
+    const hasOrders = info.orders.length > 0;
+    const hasVenc   = info.vencidas.length > 0;
+    const tone      = !hasOrders ? "empty" : hasVenc ? "crit" : info.pendientes.length > 0 ? "warn" : "ok";
+
+    return `
+      <div class="week-cal-day tone-${tone}${isToday ? " today" : ""}" onclick="filterWeekCalDay('${_localISODate(info.date)}')">
+        <div class="week-cal-dow">${info.dow}${isToday ? " · HOY" : ""}</div>
+        <div class="week-cal-date">${info.date.getDate()}</div>
+        <div class="week-cal-count">${info.orders.length}</div>
+        <div class="week-cal-label">OC${info.orders.length !== 1 ? "s" : ""}</div>
+      </div>`;
+  }).join("");
+}
+
+// Al hacer clic en un día, filtra la tabla principal por esa fecha de despacho
+function filterWeekCalDay(isoDate) {
+  const search = document.getElementById("searchInput");
+  const target = STATE.orders.filter(o => {
+    const d = parseDispatchDate(o.fecha_despacho);
+    return d && _localISODate(d) === isoDate;
+  });
+  if (search) search.value = "";
+  renderTable(target);
+}
+
 // ── Init ──────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
   setWeekRangeTitle();
@@ -195,6 +260,13 @@ async function loadOrders() {
 
     STATE.orders = sortWeekOrders(visible);
     renderTable(STATE.orders);
+
+    // Calendario semanal: todos los despachos (cualquier estado) con fecha dentro de la semana en curso
+    const weekOrders = all.filter(r => {
+      const d = parseDispatchDate(r.fecha_despacho);
+      return d && d >= lunes && d <= domingo;
+    });
+    renderWeekCalendar(weekOrders);
   } catch (e) {
     console.error("Error cargando órdenes:", e);
     const tbody = document.getElementById("ocTableBody");
