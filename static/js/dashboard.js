@@ -83,7 +83,7 @@ function renderWeekCalendar(orders) {
   const sub  = document.getElementById("weekCalSub");
   if (!grid) return;
 
-  const DIAS = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"];
+  const DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
   const { lunes } = currentWeekBounds();
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
@@ -132,9 +132,12 @@ function renderWeekCalendar(orders) {
         ).join("")
       : `<span class="week-cal-clients-empty">Sin despachos</span>`;
 
+    const dd = String(info.date.getDate()).padStart(2, "0");
+    const mm = String(info.date.getMonth() + 1).padStart(2, "0");
+
     return `
       <div class="week-cal-day tone-${tone}${isToday ? " today" : ""}" onclick="filterWeekCalDay('${_localISODate(info.date)}')">
-        <div class="week-cal-dow">${info.dow} ${String(info.date.getDate()).padStart(2, "0")}${isToday ? " · HOY" : ""}</div>
+        <div class="week-cal-dow">${info.dow} ${dd}.${mm}</div>
         <div class="week-cal-divider"></div>
         <div class="week-cal-clients">${clientesHtml}</div>
       </div>`;

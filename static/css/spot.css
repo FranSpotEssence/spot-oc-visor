@@ -251,17 +251,17 @@ body {
 }
 .week-cal-day:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
 .week-cal-day.today {
-  background: var(--spot-black);
+  background: #fff;
   border-color: var(--spot-black);
+  border-width: 2px;
   transform: scale(1.06);
   box-shadow: var(--shadow-md);
   z-index: 1;
   position: relative;
 }
 .week-cal-day.today:hover { transform: scale(1.06) translateY(-2px); }
-.week-cal-day.today .week-cal-dow  { color: #fff; }
-.week-cal-day.today .week-cal-divider { background: rgba(255,255,255,.25); }
-.week-cal-day.today .week-cal-clients-empty { color: rgba(255,255,255,.5); }
+.week-cal-day.today .week-cal-dow  { color: #000; font-weight: 900; }
+.week-cal-day.today .week-cal-divider { background: rgba(0,0,0,.2); }
 .week-cal-dow  { font-size: 9px; font-weight: 800; letter-spacing: .5px; color: #666; text-transform: uppercase; }
 
 .week-cal-divider {
