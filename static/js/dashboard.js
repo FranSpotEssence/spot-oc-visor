@@ -83,13 +83,13 @@ function renderWeekCalendar(orders) {
   const sub  = document.getElementById("weekCalSub");
   if (!grid) return;
 
-  const DIAS = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"];
+  const DIAS = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"];
   const { lunes } = currentWeekBounds();
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
 
   const days = [];
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < DIAS.length; i++) {
     const d = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + i);
     days.push(d);
   }
