@@ -1896,15 +1896,25 @@ function resetBackorderSku() {
 // ═══════════════════════════════════════════════════════════════
 // RESUMEN BACK ORDER — SKUs con plan de producción × fecha de cierre
 // ═══════════════════════════════════════════════════════════════
+const BORES = { data: null, sortCol: "total", sortAsc: false };   // orden inicial: mayor back order primero
+
 async function loadBoResumen() {
   const body = document.getElementById("boResBody");
   try {
     const res = await fetch("/api/backorder-plan");
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    renderBoResumen(await res.json());
+    BORES.data = await res.json();
+    renderBoResumen(BORES.data);
   } catch (e) {
     if (body) body.innerHTML = `<tr><td class="text-center py-4" style="color:#dc2626">Error cargando datos: ${e.message}</td></tr>`;
   }
+}
+
+// Ordena por producto (nombre), sku o total; clic repetido invierte el sentido
+function sortBoResumen(col) {
+  if (BORES.sortCol === col) BORES.sortAsc = !BORES.sortAsc;
+  else { BORES.sortCol = col; BORES.sortAsc = col !== "total"; }
+  if (BORES.data) renderBoResumen(BORES.data);
 }
 
 function renderBoResumen(d) {
@@ -1914,7 +1924,15 @@ function renderBoResumen(d) {
   if (!head || !body || !foot) return;
 
   const cols = d.columns || [];
-  const rows = d.rows || [];
+  const sortKey = BORES.sortCol, dir = BORES.sortAsc ? 1 : -1;
+  const rows = [...(d.rows || [])].sort((a, b) => {
+    const va = a[sortKey] ?? "", vb = b[sortKey] ?? "";
+    const cmp = typeof va === "number" && typeof vb === "number"
+      ? va - vb
+      : String(va).localeCompare(String(vb), "es", { sensitivity: "base", numeric: true });
+    return cmp * dir || String(a.sku).localeCompare(String(b.sku));
+  });
+  const arrow = col => BORES.sortCol === col ? (BORES.sortAsc ? " ▲" : " ▼") : " ↕";
 
   document.getElementById("boResCount").textContent = `${rows.length} SKU${rows.length !== 1 ? "s" : ""}`;
 
@@ -1935,19 +1953,21 @@ function renderBoResumen(d) {
   });
   const dated = cols.filter(c => c.month_key);
   const rs    = dated.length ? 2 : 1;
+  const sortTh = (col, label, style = "") =>
+    `<th rowspan="${rs}" onclick="sortBoResumen('${col}')" style="cursor:pointer;${style}">${label}${arrow(col)}</th>`;
 
   // Línea separadora a la izquierda de cada mes (excepto el primero)
   const edge = new Set(groups.filter((g, i) => g.month_key && i > 0).map(g => g.cols[0].key));
   const sep  = c => edge.has(c.key) ? "border-left:1px solid #e8e8e8;" : "";
 
   head.innerHTML = `<tr>
-    <th rowspan="${rs}">SKU</th>
-    <th rowspan="${rs}">Producto</th>
+    ${sortTh("sku", "SKU")}
+    ${sortTh("producto", "Producto")}
     ${groups.map(g => g.month_key
       ? `<th colspan="${g.cols.length}" style="text-align:center;color:#000;background:#f3f3f3;border-bottom:1px solid #e8e8e8;${sep(g.cols[0])}">${esc(g.month_label)}</th>`
       : `<th rowspan="${rs}" style="text-align:center">${esc(g.cols[0].label)}</th>`
     ).join("")}
-    <th rowspan="${rs}" style="text-align:center">Total</th>
+    ${sortTh("total", "Total", "text-align:center;")}
   </tr>${dated.length ? `<tr>${dated.map(c => `<th style="text-align:center;${sep(c)}">${esc(c.label)}</th>`).join("")}</tr>` : ""}`;
 
   const cell = v => v ? fmtNum(v) : `<span style="color:#ccc">—</span>`;
