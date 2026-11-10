@@ -502,7 +502,9 @@ def _has_plan_produccion(comment) -> bool:
 @_login_required
 def api_backorder_plan():
     """Back order en unidades por SKU (solo SKUs con día de plan de producción en el
-    comentario), segmentado por FECHA DE CIERRE y sumando todos los clientes."""
+    comentario), segmentado por FECHA DE CIERRE y sumando todos los clientes.
+    Se suman las líneas con plan de producción y las de comentario vacío; las líneas
+    con cualquier otro comentario no se consideran."""
     df = get_bo_detail_df()
     empty = {"columns": [], "rows": [], "col_totals": {}, "total": 0}
     if df is None or df.empty:
@@ -521,7 +523,11 @@ def api_backorder_plan():
 
     # SKUs que tienen asignado un día de plan de producción en alguna línea
     plan_skus = set(df.loc[df["_plan"] & (df["_sku"] != ""), "_sku"])
-    sub = df[df["_sku"].isin(plan_skus)]
+
+    # De esos SKUs se suman las líneas con plan de producción y las que tienen el
+    # comentario vacío; las que traen otra información en el comentario se excluyen.
+    df["_sin_comentario"] = df["comentarios"].apply(lambda v: _s(v) == "")
+    sub = df[df["_sku"].isin(plan_skus) & (df["_plan"] | df["_sin_comentario"])]
     if sub.empty:
         return jsonify(empty)
 
