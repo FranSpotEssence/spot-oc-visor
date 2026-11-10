@@ -18,7 +18,7 @@
 <link href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css" rel="stylesheet">
 
 <!-- Custom -->
-<link href="/static/css/spot.css?v=20261110a" rel="stylesheet">
+<link href="/static/css/spot.css?v=20261110b" rel="stylesheet">
 </head>
 <body>
 
@@ -61,6 +61,7 @@
       -->
       <a href="#" class="sb-item" onclick="showSection('frhistorico')">Fill Rate Histórico</a>
       <a href="#" class="sb-item" onclick="showSection('bosku')">Back Order Cliente-SKU</a>
+      <a href="#" class="sb-item" onclick="showSection('boresumen')">Resumen Back Order</a>
     </div>
 
     <div class="sb-group">
@@ -468,6 +469,31 @@
       </div>
     </section>
 
+    <!-- ══ SECCIÓN: RESUMEN BACK ORDER (SKUs con plan de producción × fecha de cierre) ══ -->
+    <section id="sectionBoresumen" class="d-none">
+      <div class="page-header">
+        <h1 class="page-title">Resumen Back Order</h1>
+        <p class="page-sub">SKUs con plan de producción asignado · unidades en back order por fecha de cierre</p>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">Back Order por SKU y Fecha de Cierre</span>
+          <span class="panel-count" id="boResCount">—</span>
+        </div>
+        <div class="table-responsive">
+          <table class="spot-table w-100">
+            <thead id="boResHead"></thead>
+            <tbody id="boResBody">
+              <tr><td class="text-center py-4 text-muted">Cargando...</td></tr>
+            </tbody>
+            <tfoot id="boResFoot"></tfoot>
+          </table>
+        </div>
+        <div id="boResFooter" class="panel-foot"></div>
+      </div>
+    </section>
+
     <!-- ══ SECCIÓN: DETALLE BACK ORDER ══ -->
     <section id="sectionBodetalle" class="d-none">
       <div class="page-header">
@@ -870,7 +896,7 @@
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
-<script src="/static/js/dashboard.js?v=20261110a"></script>
+<script src="/static/js/dashboard.js?v=20261110b"></script>
 <script src="/static/js/fa.js?v=20260712a"></script>
 </body>
 </html>

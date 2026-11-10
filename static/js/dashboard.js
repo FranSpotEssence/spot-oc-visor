@@ -1893,6 +1893,67 @@ function resetBackorderSku() {
   filterBackorderSku();
 }
 
+// ═══════════════════════════════════════════════════════════════
+// RESUMEN BACK ORDER — SKUs con plan de producción × fecha de cierre
+// ═══════════════════════════════════════════════════════════════
+async function loadBoResumen() {
+  const body = document.getElementById("boResBody");
+  try {
+    const res = await fetch("/api/backorder-plan");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    renderBoResumen(await res.json());
+  } catch (e) {
+    if (body) body.innerHTML = `<tr><td class="text-center py-4" style="color:#dc2626">Error cargando datos: ${e.message}</td></tr>`;
+  }
+}
+
+function renderBoResumen(d) {
+  const head = document.getElementById("boResHead");
+  const body = document.getElementById("boResBody");
+  const foot = document.getElementById("boResFoot");
+  if (!head || !body || !foot) return;
+
+  const cols = d.columns || [];
+  const rows = d.rows || [];
+
+  document.getElementById("boResCount").textContent = `${rows.length} SKU${rows.length !== 1 ? "s" : ""}`;
+
+  if (!rows.length) {
+    head.innerHTML = "";
+    foot.innerHTML = "";
+    body.innerHTML = `<tr><td class="text-center py-4 text-muted">Sin SKUs con día de plan de producción asignado en el comentario</td></tr>`;
+    document.getElementById("boResFooter").textContent = "";
+    return;
+  }
+
+  head.innerHTML = `<tr>
+    <th>SKU</th>
+    <th>Producto</th>
+    ${cols.map(c => `<th style="text-align:center">${esc(c.label)}</th>`).join("")}
+    <th style="text-align:center">Total</th>
+  </tr>`;
+
+  const cell = v => v ? fmtNum(v) : `<span style="color:#ccc">—</span>`;
+
+  body.innerHTML = rows.map(r => `
+    <tr>
+      <td class="font-mono" style="font-size:11px">${esc(r.sku)}</td>
+      <td style="max-width:260px">${esc(r.producto)}</td>
+      ${cols.map(c => `<td style="text-align:center">${cell(r.cells[c.key])}</td>`).join("")}
+      <td style="text-align:center;font-weight:800">${fmtNum(r.total)}</td>
+    </tr>
+  `).join("");
+
+  foot.innerHTML = `<tr>
+    <td colspan="2">Total</td>
+    ${cols.map(c => `<td style="text-align:center">${fmtNum(d.col_totals[c.key] || 0)}</td>`).join("")}
+    <td style="text-align:center">${fmtNum(d.total)}</td>
+  </tr>`;
+
+  document.getElementById("boResFooter").textContent =
+    `${fmtNum(d.total)} UN en back order · ${rows.length} SKU${rows.length !== 1 ? "s" : ""} con plan de producción`;
+}
+
 function renderLossTree(rows) {
   const ctx = document.getElementById("lossTreeChart")?.getContext("2d");
   const tbl = document.getElementById("lossTreeTable");
@@ -2036,7 +2097,7 @@ function frChipBo(fr) {
 
 // ── SECCIONES ─────────────────────────────────────────────────
 function showSection(name) {
-  const sections = ["dashboard","fillrate","backorder","bodetalle","bosku","frhistorico","frmes","trackingpt","fa"];
+  const sections = ["dashboard","fillrate","backorder","bodetalle","bosku","boresumen","frhistorico","frmes","trackingpt","fa"];
   sections.forEach(s => {
     const el = document.getElementById(`section${cap(s)}`);
     if (el) el.classList.toggle("d-none", s !== name);
@@ -2050,6 +2111,7 @@ function showSection(name) {
   if (name === "backorder")   initBoChart();
   if (name === "bodetalle")   loadBoDetail();
   if (name === "bosku")       loadBackorderSku();
+  if (name === "boresumen")   loadBoResumen();
   if (name === "frhistorico") loadFrHistorico();
   if (name === "frmes")       loadFrMes();
   if (name === "trackingpt")  loadTrackingPT();

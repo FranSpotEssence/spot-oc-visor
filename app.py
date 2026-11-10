@@ -4,6 +4,8 @@ Backend principal: Flask + Microsoft Graph API + APScheduler
 """
 import logging
 import os
+import re
+import unicodedata
 from datetime import datetime, date
 from functools import wraps
 from zoneinfo import ZoneInfo
@@ -481,6 +483,78 @@ def api_backorder_sku():
         )]
 
     return jsonify({"rows": rows, "total": len(rows)})
+
+
+# ── Resumen Back Order: SKUs con plan de producción × fecha de cierre ─────────
+_PLAN_PROD_RE  = re.compile(r"plan\s*(?:de\s*)?prod")
+_PLAN_FECHA_RE = re.compile(r"\b\d{1,2}\s*[-./]\s*\d{1,2}\b")
+_DIAS_ABREV    = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+
+
+def _has_plan_produccion(comment) -> bool:
+    """True si el comentario indica un plan de producción con un día asignado.
+    Ej.: "EN PLAN PRODUCCIÓN 10-11", "En plan producción 04.08"."""
+    txt = unicodedata.normalize("NFKD", _s(comment)).encode("ascii", "ignore").decode().lower()
+    return bool(_PLAN_PROD_RE.search(txt) and _PLAN_FECHA_RE.search(txt))
+
+
+@app.route("/api/backorder-plan")
+@_login_required
+def api_backorder_plan():
+    """Back order en unidades por SKU (solo SKUs con día de plan de producción en el
+    comentario), segmentado por FECHA DE CIERRE y sumando todos los clientes."""
+    df = get_bo_detail_df()
+    empty = {"columns": [], "rows": [], "col_totals": {}, "total": 0}
+    if df is None or df.empty:
+        return jsonify(empty)
+
+    df = df.copy()
+    df["_sku"]  = df["ean_spot"].apply(_s)
+    df["_plan"] = df["comentarios"].apply(_has_plan_produccion)
+
+    cierre_col = next((c for c in df.columns if str(c).strip().upper() == "FECHA DE CIERRE"), None)
+    if cierre_col is not None:
+        df["_cierre"] = pd.to_datetime(df[cierre_col], errors="coerce")
+    else:
+        df["_cierre"] = pd.NaT
+    df["_cierre_key"] = df["_cierre"].apply(lambda d: d.strftime("%Y-%m-%d") if pd.notna(d) else "")
+
+    # SKUs que tienen asignado un día de plan de producción en alguna línea
+    plan_skus = set(df.loc[df["_plan"] & (df["_sku"] != ""), "_sku"])
+    sub = df[df["_sku"].isin(plan_skus)]
+    if sub.empty:
+        return jsonify(empty)
+
+    keys = sorted({k for k in sub["_cierre_key"] if k})
+    if (sub["_cierre_key"] == "").any():
+        keys.append("")
+
+    def label(k):
+        if not k:
+            return "Sin fecha"
+        d = datetime.strptime(k, "%Y-%m-%d")
+        return f"{_DIAS_ABREV[d.weekday()]} {d.day:02d}.{d.month:02d}"
+
+    rows = []
+    for sku, g in sub.groupby("_sku"):
+        cells = {k: int(g.loc[g["_cierre_key"] == k, "bo_un"].sum()) for k in keys}
+        cells = {k: v for k, v in cells.items() if v}
+        productos = [_s(x) for x in g["producto"] if _s(x)]
+        rows.append({
+            "sku":      sku,
+            "producto": productos[0] if productos else "",
+            "cells":    cells,
+            "total":    int(g["bo_un"].sum()),
+        })
+    rows.sort(key=lambda r: (-r["total"], r["sku"]))
+
+    col_totals = {k: int(sub.loc[sub["_cierre_key"] == k, "bo_un"].sum()) for k in keys}
+    return jsonify({
+        "columns":    [{"key": k, "label": label(k)} for k in keys],
+        "rows":       rows,
+        "col_totals": col_totals,
+        "total":      int(sub["bo_un"].sum()),
+    })
 
 
 @app.route("/api/fr-historico")
