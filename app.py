@@ -504,7 +504,8 @@ def api_backorder_plan():
     """Back order en unidades por SKU (solo SKUs con día de plan de producción en el
     comentario), segmentado por FECHA DE CIERRE y sumando todos los clientes.
     Se suman las líneas con plan de producción y las de comentario vacío; las líneas
-    con cualquier otro comentario no se consideran."""
+    con cualquier otro comentario no se consideran. Solo se muestran fechas de cierre
+    vigentes (hoy o posteriores)."""
     df = get_bo_detail_df()
     empty = {"columns": [], "rows": [], "col_totals": {}, "total": 0}
     if df is None or df.empty:
@@ -520,6 +521,14 @@ def api_backorder_plan():
     else:
         df["_cierre"] = pd.NaT
     df["_cierre_key"] = df["_cierre"].apply(lambda d: d.strftime("%Y-%m-%d") if pd.notna(d) else "")
+
+    # Vigencia: la información aplica hasta el día de cierre (inclusive). Pasado ese día
+    # la fecha desaparece del visor aunque la línea siga con back order. Las líneas sin
+    # fecha de cierre no tienen cuándo vencer, así que se mantienen.
+    hoy = pd.Timestamp(_today_cl())
+    df = df[df["_cierre"].isna() | (df["_cierre"].dt.normalize() >= hoy)]
+    if df.empty:
+        return jsonify(empty)
 
     # SKUs que tienen asignado un día de plan de producción en alguna línea
     plan_skus = set(df.loc[df["_plan"] & (df["_sku"] != ""), "_sku"])
