@@ -488,7 +488,7 @@ def api_backorder_sku():
 # ── Resumen Back Order: SKUs con plan de producción × fecha de cierre ─────────
 _PLAN_PROD_RE  = re.compile(r"plan\s*(?:de\s*)?prod")
 _PLAN_FECHA_RE = re.compile(r"\b\d{1,2}\s*[-./]\s*\d{1,2}\b")
-_DIAS_ABREV    = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+_DIAS_LARGO    = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
 
 
 def _has_plan_produccion(comment) -> bool:
@@ -535,11 +535,17 @@ def api_backorder_plan():
     if (sub["_cierre_key"] == "").any():
         keys.append("")
 
-    def label(k):
+    def column(k):
+        """Columna: día (nombre completo + número) y mes al que pertenece."""
         if not k:
-            return "Sin fecha"
+            return {"key": "", "label": "Sin fecha", "month_key": "", "month_label": ""}
         d = datetime.strptime(k, "%Y-%m-%d")
-        return f"{_DIAS_ABREV[d.weekday()]} {d.day:02d}.{d.month:02d}"
+        return {
+            "key":         k,
+            "label":       f"{_DIAS_LARGO[d.weekday()]} {d.day}",
+            "month_key":   k[:7],
+            "month_label": _mes_largo(d).capitalize(),   # "Noviembre 2026"
+        }
 
     rows = []
     for sku, g in sub.groupby("_sku"):
@@ -556,7 +562,7 @@ def api_backorder_plan():
 
     col_totals = {k: int(sub.loc[sub["_cierre_key"] == k, "bo_un"].sum()) for k in keys}
     return jsonify({
-        "columns":    [{"key": k, "label": label(k)} for k in keys],
+        "columns":    [column(k) for k in keys],
         "rows":       rows,
         "col_totals": col_totals,
         "total":      int(sub["bo_un"].sum()),

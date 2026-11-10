@@ -1926,12 +1926,29 @@ function renderBoResumen(d) {
     return;
   }
 
+  // Grupos por mes: las columnas llegan ordenadas por fecha ("Sin fecha" al final)
+  const groups = [];
+  cols.forEach(c => {
+    const last = groups[groups.length - 1];
+    if (c.month_key && last && last.month_key === c.month_key) last.cols.push(c);
+    else groups.push({ month_key: c.month_key, month_label: c.month_label, cols: [c] });
+  });
+  const dated = cols.filter(c => c.month_key);
+  const rs    = dated.length ? 2 : 1;
+
+  // Línea separadora a la izquierda de cada mes (excepto el primero)
+  const edge = new Set(groups.filter((g, i) => g.month_key && i > 0).map(g => g.cols[0].key));
+  const sep  = c => edge.has(c.key) ? "border-left:1px solid #e8e8e8;" : "";
+
   head.innerHTML = `<tr>
-    <th>SKU</th>
-    <th>Producto</th>
-    ${cols.map(c => `<th style="text-align:center">${esc(c.label)}</th>`).join("")}
-    <th style="text-align:center">Total</th>
-  </tr>`;
+    <th rowspan="${rs}">SKU</th>
+    <th rowspan="${rs}">Producto</th>
+    ${groups.map(g => g.month_key
+      ? `<th colspan="${g.cols.length}" style="text-align:center;color:#000;background:#f3f3f3;border-bottom:1px solid #e8e8e8;${sep(g.cols[0])}">${esc(g.month_label)}</th>`
+      : `<th rowspan="${rs}" style="text-align:center">${esc(g.cols[0].label)}</th>`
+    ).join("")}
+    <th rowspan="${rs}" style="text-align:center">Total</th>
+  </tr>${dated.length ? `<tr>${dated.map(c => `<th style="text-align:center;${sep(c)}">${esc(c.label)}</th>`).join("")}</tr>` : ""}`;
 
   const cell = v => v ? fmtNum(v) : `<span style="color:#ccc">—</span>`;
 
@@ -1939,14 +1956,14 @@ function renderBoResumen(d) {
     <tr>
       <td class="font-mono" style="font-size:11px">${esc(r.sku)}</td>
       <td style="max-width:260px">${esc(r.producto)}</td>
-      ${cols.map(c => `<td style="text-align:center">${cell(r.cells[c.key])}</td>`).join("")}
+      ${cols.map(c => `<td style="text-align:center;${sep(c)}">${cell(r.cells[c.key])}</td>`).join("")}
       <td style="text-align:center;font-weight:800">${fmtNum(r.total)}</td>
     </tr>
   `).join("");
 
   foot.innerHTML = `<tr>
     <td colspan="2">Total</td>
-    ${cols.map(c => `<td style="text-align:center">${fmtNum(d.col_totals[c.key] || 0)}</td>`).join("")}
+    ${cols.map(c => `<td style="text-align:center;${sep(c)}">${fmtNum(d.col_totals[c.key] || 0)}</td>`).join("")}
     <td style="text-align:center">${fmtNum(d.total)}</td>
   </tr>`;
 
