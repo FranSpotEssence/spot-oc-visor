@@ -485,7 +485,7 @@ def api_backorder_sku():
     return jsonify({"rows": rows, "total": len(rows)})
 
 
-# ── Resumen Back Order: SKUs con plan de producción × fecha de cierre ─────────
+# ── Back Order Producción: SKUs con plan de producción × fecha de cierre ─────────
 _PLAN_PROD_RE  = re.compile(r"plan\s*(?:de\s*)?prod")
 _PLAN_FECHA_RE = re.compile(r"\b\d{1,2}\s*[-./]\s*\d{1,2}\b")
 _DIAS_LARGO    = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
