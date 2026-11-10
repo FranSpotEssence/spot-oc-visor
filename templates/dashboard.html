@@ -18,7 +18,7 @@
 <link href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css" rel="stylesheet">
 
 <!-- Custom -->
-<link href="/static/css/spot.css?v=20260805b" rel="stylesheet">
+<link href="/static/css/spot.css?v=20261110a" rel="stylesheet">
 </head>
 <body>
 
@@ -68,17 +68,12 @@
       <a href="#" class="sb-item" onclick="showSection('trackingpt')">Tracking diario PT</a>
     </div>
 
+    <!-- OCULTO TEMPORALMENTE — descomentar para reactivar Forecast Accuracy
     <div class="sb-group">
       <div class="sb-label">Planificación</div>
       <a href="#" class="sb-item" onclick="showSection('fa')">Forecast Accuracy</a>
     </div>
-
-    <div class="sb-group">
-      <div class="sb-label">Asistente</div>
-      <a href="#" class="sb-item sb-spotia" onclick="showSection('spotia')">
-        <span class="spotia-sb-icon">✦</span> SpotIA
-      </a>
-    </div>
+    -->
 
     <!-- Última actualización -->
     <div class="sidebar-footer">
@@ -542,82 +537,6 @@
       </div>
     </section>
 
-    <!-- ══ SECCIÓN: SpotIA ══ -->
-    <section id="sectionSpotia" class="d-none">
-      <div class="spotia-shell">
-
-        <!-- Header -->
-        <div class="spotia-header">
-          <div class="spotia-header-left">
-            <div class="spotia-logo">✦</div>
-            <div>
-              <div class="spotia-title">SpotIA</div>
-              <div class="spotia-subtitle">Asistente Inteligente Fill Rate &amp; Supply Chain</div>
-            </div>
-          </div>
-          <div class="spotia-header-right">
-            <select id="spotiaClienteCtx" class="spotia-select">
-              <option value="">Todos los clientes</option>
-            </select>
-            <button class="spotia-mode-btn" onclick="spotiaMode('executive')" title="Estado del mes">
-              📊 Estado del mes
-            </button>
-            <button class="spotia-mode-btn" onclick="spotiaMode('riesgos')" title="OCs con riesgo">
-              ⚠️ OCs con riesgo
-            </button>
-            <button class="spotia-mode-btn" onclick="spotiaMode('comercial')" title="Resumen por cliente">
-              🤝 Resumen cliente
-            </button>
-            <button class="spotia-clear-btn" onclick="spotiaClearHistory()" title="Limpiar historial de conversación">
-              🗑 Limpiar
-            </button>
-          </div>
-        </div>
-
-        <!-- Preguntas sugeridas -->
-        <div class="spotia-suggestions" id="spotiaSuggestions">
-          <span class="spotia-sug-label">Preguntas frecuentes:</span>
-          <button class="spotia-chip" onclick="spotiaAsk('¿Cuál es el Fill Rate MTD?')">FR del mes</button>
-          <button class="spotia-chip" onclick="spotiaAsk('¿Qué clientes tienen el FR más bajo?')">FR por cliente</button>
-          <button class="spotia-chip" onclick="spotiaAsk('¿Cuál es el Back Order valorizado total?')">BO total</button>
-          <button class="spotia-chip" onclick="spotiaAsk('¿Qué OCs están vencidas?')">OCs vencidas</button>
-          <button class="spotia-chip" onclick="spotiaAsk('¿Cuáles son los 5 productos con más Back Order?')">Top 5 BO</button>
-          <button class="spotia-chip" onclick="spotiaAsk('¿Cuánto hemos facturado este mes?')">Facturación MTD</button>
-          <button class="spotia-chip" onclick="spotiaAsk('¿Cómo evolucionó el FR en los últimos 3 meses?')">Tendencia FR</button>
-          <button class="spotia-chip" onclick="spotiaAsk('¿Qué OCs tienen FR menor al 80%?')">FR crítico</button>
-        </div>
-
-        <!-- Área de chat -->
-        <div class="spotia-chat" id="spotiaChat">
-          <div class="spotia-welcome">
-            <div class="spotia-welcome-icon">✦</div>
-            <div class="spotia-welcome-title">Hola, soy SpotIA</div>
-            <div class="spotia-welcome-text">
-              Puedo responder cualquier pregunta sobre Fill Rate, Back Orders, OCs, clientes y productos
-              utilizando los datos actuales del dashboard. ¿En qué te puedo ayudar?
-            </div>
-          </div>
-        </div>
-
-        <!-- Input -->
-        <div class="spotia-input-area">
-          <div class="spotia-input-wrap">
-            <textarea id="spotiaInput" class="spotia-input" rows="1"
-              placeholder="Pregunta sobre Fill Rate, Back Orders, clientes, OCs..."
-              onkeydown="spotiaKeydown(event)"></textarea>
-            <button class="spotia-send" id="spotiaSendBtn" onclick="spotiaSubmit()">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <line x1="22" y1="2" x2="11" y2="13"></line>
-                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-              </svg>
-            </button>
-          </div>
-          <div class="spotia-input-hint">Presiona Enter para enviar · Shift+Enter para nueva línea</div>
-        </div>
-
-      </div>
-    </section>
-
     <!-- ─── INVENTARIOS · Tracking diario PT ─── -->
     <section id="sectionTrackingpt" class="d-none">
 
@@ -951,7 +870,7 @@
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
-<script src="/static/js/dashboard.js?v=20260805f"></script>
+<script src="/static/js/dashboard.js?v=20261110a"></script>
 <script src="/static/js/fa.js?v=20260712a"></script>
 </body>
 </html>
